@@ -1,0 +1,99 @@
+name: Test build llvm for windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      llvm-version:
+        description: 'LLVM version'
+        required: true
+        default: '20.1.0'
+
+jobs:
+  build-llvm-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        config: [Debug, Release, RelWithDebInfo]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Get LLVM source code
+        run: |
+          git clone https://github.com/llvm/llvm-project.git
+          cd llvm-project
+          git checkout llvmorg-${{ inputs.llvm-version }} -b llvm-${{ inputs.llvm-version }}
+
+      - name: Build llvm for windows
+        shell: cmd
+        env:
+          LLVM_CONFIG: ${{ matrix.config }}
+        run: |
+          rem ====== 用户可调路径 ======
+          set "LLVM_CODE_BASE=%GITHUB_WORKSPACE%\src"
+          set "LLVM_BUILD_DIR=%GITHUB_WORKSPACE%\build\%LLVM_CONFIG%"
+          set "LLVM_INSTALL_DIR=%GITHUB_WORKSPACE%\install\%LLVM_CONFIG%"
+          set "PACKAGE_DIR=%GITHUB_WORKSPACE%\packages"
+
+          rem ====== 创建目录 ======
+          for %%D in ("%LLVM_CODE_BASE%" "%LLVM_BUILD_DIR%" "%LLVM_INSTALL_DIR%" "%PACKAGE_DIR%") do (
+             if not exist "%%D" mkdir "%%D"
+          )
+
+          rem ====== 1. 拷贝源码 ======
+          cd /d "%LLVM_CODE_BASE%"
+          robocopy "%GITHUB_WORKSPACE%\llvm-project" . /E /NFL /NDL /NJH /NJS
+          if not exist llvm\CMakeLists.txt (
+              echo [ERROR] 源码目录下找不到 llvm\CMakeLists.txt
+              exit /b 1
+          )
+
+          rem ====== 2. 生成构建树 ======
+          cmake -S llvm ^
+                -B "%LLVM_BUILD_DIR%" ^
+                -G Ninja ^
+                -DCMAKE_BUILD_TYPE=%LLVM_CONFIG% ^
+                -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" ^
+                -DLLVM_BUILD_STATIC=ON ^
+                -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%" ^
+                -DLLVM_ENABLE_ASSERTIONS=ON
+          if errorlevel 1 (
+              echo [ERROR] CMake 生成失败
+              exit /b 1
+          )
+
+          rem ====== 3. 编译 ======
+          ninja -C "%LLVM_BUILD_DIR%" -j8
+          if errorlevel 1 (
+              echo [ERROR] 编译失败
+              exit /b 1
+          )
+
+          rem ====== 4. 单元测试（仅 Release 跑） ======
+          if "%LLVM_CONFIG%"=="Release" (
+            echo [INFO] 开始运行 LLVM/Clang 测试套件
+            ninja -C "%LLVM_BUILD_DIR%" check-llvm
+            ninja -C "%LLVM_BUILD_DIR%" check-clang
+          )
+
+          rem ====== 5. 安装 ======
+          ninja -C "%LLVM_BUILD_DIR%" install
+          echo [INFO] 安装完成，目录：%LLVM_INSTALL_DIR%
+
+          rem ====== 6. 验证 ======
+          "%LLVM_INSTALL_DIR%\bin\clang.exe" --version
+
+          rem ====== 7. 打包 ======
+          cd /d "%LLVM_INSTALL_DIR%"
+          set "ZIP_FILE=%PACKAGE_DIR%\llvm-${{ inputs.llvm-version }}-windows-%LLVM_CONFIG%.zip"
+          if exist "%ZIP_FILE%" del /f /q "%ZIP_FILE%"
+          powershell -command "Compress-Archive -Path * -DestinationPath '%ZIP_FILE%'"
+          echo [INFO] 打包完成：%ZIP_FILE%
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}
+          path: packages/llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}.zip
