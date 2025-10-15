@@ -58,9 +58,10 @@ jobs:
                 -G Ninja ^
                 -DCMAKE_BUILD_TYPE=%LLVM_CONFIG% ^
                 -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" ^
+                -DLLVM_TARGETS_TO_BUILD="X86" ^
                 -DLLVM_BUILD_STATIC=ON ^
-                -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%" ^
-                -DLLVM_ENABLE_ASSERTIONS=ON
+                -DLLVM_ENABLE_LLD=ON ^
+                -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%"
           if errorlevel 1 (
               echo [ERROR] CMake 生成失败
               exit /b 1
