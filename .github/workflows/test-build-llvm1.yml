@@ -61,6 +61,7 @@ jobs:
                 -DLLVM_TARGETS_TO_BUILD="X86" ^
                 -DLLVM_BUILD_STATIC=ON ^
                 -DLLVM_ENABLE_LLD=ON ^
+                -DLIBCLANG_BUILD_STATIC=ON ^
                 -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%"
           if errorlevel 1 (
               echo [ERROR] CMake 生成失败
@@ -99,4 +100,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}
-          path: packages/llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}.zip
+          path: ${{ github.workspace }}/packages/llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}.zip
