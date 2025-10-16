@@ -45,7 +45,7 @@ jobs:
 
           rem ====== 1. 拷贝源码 ======
           pushd "%GITHUB_WORKSPACE%\llvm-project"
-          robocopy . "%LLVM_CODE_BASE%" /E /NFL /NDL /NJH /NJS /XD .git
+          robocopy . "%LLVM_CODE_BASE%" /MOVE /E /NFL /NDL /NJH /NJS /XD .git
           popd
           cd /d "%LLVM_CODE_BASE%"
           if not exist llvm\CMakeLists.txt (
