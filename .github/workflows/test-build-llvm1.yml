@@ -47,13 +47,13 @@ jobs:
           pushd "%GITHUB_WORKSPACE%\llvm-project"
           robocopy . "%LLVM_CODE_BASE%" /E /NFL /NDL /NJH /NJS /XD .git
           popd
+          cd /d "%LLVM_CODE_BASE%"
           if not exist llvm\CMakeLists.txt (
               echo [ERROR] 源码目录下找不到 llvm\CMakeLists.txt
               exit /b 1
           )
 
           rem ====== 2. 生成构建树 ======
-          cd /d "%LLVM_CODE_BASE%"
           call "%VS_ROOT_DIR%\VC\Auxiliary\Build\vcvarsall.bat" amd64 || (echo vcvarsall failed && exit /b 1)
           cmake -S llvm ^
                 -B "%LLVM_BUILD_DIR%" ^
