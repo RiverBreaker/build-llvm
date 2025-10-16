@@ -45,7 +45,7 @@ jobs:
 
           rem ====== 1. 拷贝源码 ======
           cd /d "%LLVM_CODE_BASE%"
-          robocopy "%GITHUB_WORKSPACE%\llvm-project" . /E /NFL /NDL /NJH /NJS
+          robocopy "%GITHUB_WORKSPACE%\llvm-project*" . /E /NFL /NDL /NJH /NJS
           if not exist llvm\CMakeLists.txt (
               echo [ERROR] 源码目录下找不到 llvm\CMakeLists.txt
               exit /b 1
