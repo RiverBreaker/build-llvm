@@ -35,4 +35,4 @@ jobs:
             Format-Table -AutoSize
       - name: test big Files
         run: |
-          where 7z
+          Get-Command 7z -ErrorAction SilentlyContinue
