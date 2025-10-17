@@ -18,18 +18,18 @@ jobs:
               Name = 'DeviceID';      Expression = { $_.DeviceID }
             },
             @{
-              Name = '卷标';          Expression = { $_.VolumeName }
+              Name = 'VolumeName';          Expression = { $_.VolumeName }
             },
             @{
-              Name = '总容量(GB)';    Expression = { [int][math]::Round($_.Size / 1GB) }
+              Name = 'Size(GB)';    Expression = { [int][math]::Round($_.Size / 1GB) }
             },
             @{
-              Name = '已用(GB)';      Expression = { [int][math]::Round(($_.Size - $_.FreeSpace) / 1GB) }
+              Name = 'Used(GB)';      Expression = { [int][math]::Round(($_.Size - $_.FreeSpace) / 1GB) }
             },
             @{
-              Name = '剩余(GB)';      Expression = { [int][math]::Round($_.FreeSpace / 1GB) }
+              Name = 'Free(GB)';      Expression = { [int][math]::Round($_.FreeSpace / 1GB) }
             },
             @{
-              Name = '使用率%';       Expression = { [math]::Round((($_.Size - $_.FreeSpace) / $_.Size) * 100, 1) }
+              Name = 'utilization_rate%';       Expression = { [math]::Round((($_.Size - $_.FreeSpace) / $_.Size) * 100, 1) }
             } |
             Format-Table -AutoSize
