@@ -35,6 +35,4 @@ jobs:
             Format-Table -AutoSize
       - name: test big Files
         run: |
-          fsutil file createnew D:\testfile.dat 10737418240 || (echo "Failed to create file" && exit 1)
-          fsutil file createnew D:\testfile2.dat 20737418240 || (echo "Failed to create file" && exit 1)
-          fsutil file createnew D:\testfile3.dat 30737418240 || (echo "Failed to create file" && exit 1)
+          where 7z
