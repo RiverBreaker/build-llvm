@@ -102,8 +102,7 @@ jobs:
           echo [INFO] 打包完成：%ZIP_FILE%
 
           rem ====== 8. 清理 ======
-          powershell -command "Remove-Item -Recurse -Force '%LLVM_BUILD_DIR%'" ^
-          || (echo [ERROR] 清理失败 && exit /b 1)
+          powershell -command "Remove-Item -Recurse -Force '%LLVM_BUILD_DIR%'" || (echo [ERROR] 清理失败 && exit /b 1)
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
