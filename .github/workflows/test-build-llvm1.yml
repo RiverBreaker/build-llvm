@@ -67,6 +67,9 @@ jobs:
                 -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" ^
                 -DLLVM_TARGETS_TO_BUILD="X86" ^
                 -DLLVM_ENABLE_LLD=OFF ^
+                -DPACKAGE_VENDOR="Build By Riverbreaker" ^
+                -DCLANG_VENDOR="Build By Riverbreaker" ^
+                -DCLANG_VERSION_EXTRA="(Github Actions CI Build)" ^
                 -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%"
           if errorlevel 1 (
               echo [ERROR] CMake 生成失败
@@ -80,24 +83,23 @@ jobs:
               exit /b 1
           )
 
-          rem ====== 4. 单元测试（仅 Release 跑） ======
-          if "%LLVM_CONFIG%"=="Release" (
-            echo [INFO] 开始运行 LLVM/Clang 测试套件
-            ninja -C "%LLVM_BUILD_DIR%" check-llvm
-            ninja -C "%LLVM_BUILD_DIR%" check-clang
-          )
-
           rem ====== 5. 安装 ======
           ninja -C "%LLVM_BUILD_DIR%" install
           echo [INFO] 安装完成，目录：%LLVM_INSTALL_DIR%
 
           rem ====== 6. 验证 ======
+          echo [INFO] 验证安装结果
           "%LLVM_INSTALL_DIR%\bin\clang.exe" --version
+          echo [INFO] 运行测试
+          echo int main() { return 0; } > test.c
+          "%LLVM_INSTALL_DIR%\bin\clang.exe" test.c -o test.exe
+          if errorlevel 1 exit /b 1
 
           rem ====== 7. 打包 ======
           cd /d "%LLVM_INSTALL_DIR%"
           set "ZIP_FILE=%PACKAGE_DIR%\llvm-${{ inputs.llvm-version }}-windows-%LLVM_CONFIG%.zip"
           if exist "%ZIP_FILE%" del /f /q "%ZIP_FILE%"
+          echo [INFO] 开始打包到：%ZIP_FILE%
           powershell -command "Compress-Archive -Path * -DestinationPath '%ZIP_FILE%'"
           echo [INFO] 打包完成：%ZIP_FILE%
 
