@@ -35,24 +35,6 @@ jobs:
             Format-Table -AutoSize
       - name: test big Files
         run: |
-          fsutil file createnew D:\testfile.dat 10737418240
-          if exist D:\testfile.dat (
-            echo File created successfully.
-          ) else (
-            echo Failed to create file.
-            exit /b 1
-          )
-          fsutil file createnew D:\testfile2.dat 20737418240
-          if exist D:\testfile2.dat (
-            echo File created successfully.
-          ) else (
-            echo Failed to create file.
-            exit /b 1
-          )
-          fsutil file createnew D:\testfile3.dat 30737418240
-          if exist D:\testfile3.dat (
-            echo File created successfully.
-          ) else (
-            echo Failed to create file.
-            exit /b 1
-          )
+          fsutil file createnew D:\testfile.dat 10737418240 || (echo "Failed to create file" && exit 1)
+          fsutil file createnew D:\testfile2.dat 20737418240 || (echo "Failed to create file" && exit 1)
+          fsutil file createnew D:\testfile3.dat 30737418240 || (echo "Failed to create file" && exit 1)
