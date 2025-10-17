@@ -91,7 +91,8 @@ jobs:
           echo [INFO] 验证安装结果
           "%LLVM_INSTALL_DIR%\bin\clang.exe" --version
           echo [INFO] 运行测试
-          echo int main() { return 0; } > test.c
+          echo #include ^<stdio.h^> > test.c
+          echo int main() { printf("Hello, World!\n"); return 0; } >> test.c
           "%LLVM_INSTALL_DIR%\bin\clang.exe" test.c -o test.exe
           if errorlevel 1 exit /b 1
 
@@ -100,7 +101,7 @@ jobs:
           set "ZIP_FILE=%PACKAGE_DIR%\llvm-${{ inputs.llvm-version }}-windows-%LLVM_CONFIG%.zip"
           if exist "%ZIP_FILE%" del /f /q "%ZIP_FILE%"
           echo [INFO] 开始打包到：%ZIP_FILE%
-          powershell -command "Compress-Archive -Path * -DestinationPath '%ZIP_FILE%'"
+          7z a -tzip "%ZIP_FILE%" . -mx=6 -mmt=on
           echo [INFO] 打包完成：%ZIP_FILE%
 
           rem ====== 8. 清理 ======
