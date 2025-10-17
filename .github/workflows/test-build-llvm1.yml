@@ -40,20 +40,18 @@ jobs:
         run: |
           rem ====== 用户可调路径 ======
           set "VS_ROOT_DIR=C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
-          set "LLVM_CODE_BASE=%GITHUB_WORKSPACE%\src"
+          set "LLVM_CODE_BASE=%GITHUB_WORKSPACE%\llvm-project"
           set "LLVM_BUILD_DIR=%GITHUB_WORKSPACE%\build\%LLVM_CONFIG%"
-          set "LLVM_INSTALL_DIR=%GITHUB_WORKSPACE%\install\%LLVM_CONFIG%"
-          set "PACKAGE_DIR=%GITHUB_WORKSPACE%\packages"
+          set "LLVM_INSTALL_ROOT=C:\llvm"
+          set "LLVM_INSTALL_DIR=%LLVM_INSTALL_ROOT%\install\%LLVM_CONFIG%"
+          set "PACKAGE_DIR=%LLVM_INSTALL_ROOT%\packages"
 
           rem ====== 创建目录 ======
-          for %%D in ("%LLVM_CODE_BASE%" "%LLVM_BUILD_DIR%" "%LLVM_INSTALL_DIR%" "%PACKAGE_DIR%") do (
+          for %%D in ("%LLVM_CODE_BASE%" "%LLVM_BUILD_DIR%" "%LLVM_INSTALL_ROOT%" "%LLVM_INSTALL_DIR%" "%PACKAGE_DIR%") do (
              if not exist "%%D" mkdir "%%D"
           )
 
           rem ====== 1. 拷贝源码 ======
-          pushd "%GITHUB_WORKSPACE%\llvm-project"
-          robocopy . "%LLVM_CODE_BASE%" /MOVE /E /NFL /NDL /NJH /NJS /XD .git
-          popd
           cd /d "%LLVM_CODE_BASE%"
           if not exist llvm\CMakeLists.txt (
               echo [ERROR] 源码目录下找不到 llvm\CMakeLists.txt
@@ -111,4 +109,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}
-          path: ${{ github.workspace }}/packages/llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}.zip
+          path: C:/llvm/packages/llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}.zip
