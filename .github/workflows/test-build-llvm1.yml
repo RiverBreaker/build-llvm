@@ -111,7 +111,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}
-          path: C:/llvm/packages/llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}.zip
+          path: C:/llvm/packages/llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}.7z
 
   upload-2-gh-release:
     needs: build-llvm-windows
