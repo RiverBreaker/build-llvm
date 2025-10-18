@@ -122,43 +122,43 @@ jobs:
       matrix:
         config: [Debug, Release, RelWithDebInfo]
 
-      steps:
-        - uses: actions/checkout@v3
+    steps:
+      - uses: actions/checkout@v3
 
-        - name: download artifact
-          uses: actions/download-artifact@v4
-          with:
-            name: llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}
-            path: ${{ runner.temp }}/artifacts
+      - name: download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}
+          path: ${{ runner.temp }}/artifacts
 
-        - name: make packages unless 2GB
-          shell: pwsh
-          env:
-            CONFIG: ${{ matrix.config }}
-            LLVM_VERSION: ${{ inputs.llvm-version }}
-            RUNNER_TEMP: ${{ runner.temp }}
-          run: |
-            $FilePath = "$env:RUNNER_TEMP/artifacts/llvm-$env:LLVM_VERSION-windows-$env:CONFIG.zip"
-            $NewFilePath = "$env:RUNNER_TEMP/packages"
-            New-Item -Path $NewFilePath -ItemType Directory -Force | Out-Null
+      - name: make packages unless 2GB
+        shell: pwsh
+        env:
+          CONFIG: ${{ matrix.config }}
+          LLVM_VERSION: ${{ inputs.llvm-version }}
+          RUNNER_TEMP: ${{ runner.temp }}
+        run: |
+          $FilePath = "$env:RUNNER_TEMP/artifacts/llvm-$env:LLVM_VERSION-windows-$env:CONFIG.zip"
+          $NewFilePath = "$env:RUNNER_TEMP/packages"
+          New-Item -Path $NewFilePath -ItemType Directory -Force | Out-Null
 
-            $FileBaseName = "llvm-$env:LLVM_VERSION-windows-$env:CONFIG"
-            $LimitSize = 1950MB
-            $FileSize = (Get-Item $FilePath).Length
+          $FileBaseName = "llvm-$env:LLVM_VERSION-windows-$env:CONFIG"
+          $LimitSize = 1950MB
+          $FileSize = (Get-Item $FilePath).Length
 
-            if ($FileSize -gt $LimitSize) {
-              Write-Host "[INFO] 文件超过限制大小，开始分卷压缩"
-              $VolumeSize = "1900MB"
-              $OutputPath = Join-Path $NewFilePath "$FileBaseName.7z"
-              & 7z a $OutputPath $FilePath -v$VolumeSize -mx=6 -mmt-on
-              Write-Host "[INFO] 分卷压缩完成，输出到: $OutputPath"
-            } else {
-              Write-Host "[INFO] 文件大小正常，直接复制到: $NewFilePath"
-              Copy-Item $FilePath (Join-Path $NewFilePath ([System.IO.Path]::GetFileName($FilePath)))
-              Write-Host "[INFO] 复制完成"
-            }
-        - name: Upload to artifact
-          uses: actions/upload-artifact@v4
-          with:
-            name: llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}
-            path: ${{ runner.temp }}/packages/llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}.*
+          if ($FileSize -gt $LimitSize) {
+            Write-Host "[INFO] 文件超过限制大小，开始分卷压缩"
+            $VolumeSize = "1900MB"
+            $OutputPath = Join-Path $NewFilePath "$FileBaseName.7z"
+            & 7z a $OutputPath $FilePath -v$VolumeSize -mx=6 -mmt-on
+            Write-Host "[INFO] 分卷压缩完成，输出到: $OutputPath"
+          } else {
+            Write-Host "[INFO] 文件大小正常，直接复制到: $NewFilePath"
+            Copy-Item $FilePath (Join-Path $NewFilePath ([System.IO.Path]::GetFileName($FilePath)))
+            Write-Host "[INFO] 复制完成"
+          }
+      - name: Upload to artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}
+          path: ${{ runner.temp }}/packages/llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}.*
