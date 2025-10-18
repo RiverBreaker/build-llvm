@@ -93,12 +93,12 @@ jobs:
           echo [INFO] 运行测试
           echo #include ^<stdio.h^> > test.c
           echo int main() { printf("Hello, World!\n"); return 0; } >> test.c
-          "%LLVM_INSTALL_DIR%\bin\clang.exe" test.c -o test.exe
+          "%LLVM_INSTALL_DIR%\bin\clang.exe" test.c -o test.exe && test.exe
           if errorlevel 1 exit /b 1
 
           rem ====== 7. 打包 ======
           cd /d "%LLVM_INSTALL_DIR%"
-          set "ZIP_FILE=%PACKAGE_DIR%\llvm-${{ inputs.llvm-version }}-windows-%LLVM_CONFIG%.zip"
+          set "ZIP_FILE=%PACKAGE_DIR%\llvm-${{ inputs.llvm-version }}-windows-%LLVM_CONFIG%.7z"
           if exist "%ZIP_FILE%" del /f /q "%ZIP_FILE%"
           echo [INFO] 开始打包到：%ZIP_FILE%
           7z a -tzip "%ZIP_FILE%" . -mx=6 -mmt=on
@@ -112,3 +112,53 @@ jobs:
         with:
           name: llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}
           path: C:/llvm/packages/llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}.zip
+
+  upload-2-gh-release:
+    needs: build-llvm-windows
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        config: [Debug, Release, RelWithDebInfo]
+
+      steps:
+        - uses: actions/checkout@v3
+
+        - name: download artifact
+          uses: actions/download-artifact@v4
+          with:
+            name: llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}
+            path: ${{ runner.temp }}/artifacts
+
+        - name: make packages unless 2GB
+          shell: pwsh
+          env:
+            CONFIG: ${{ matrix.config }}
+            LLVM_VERSION: ${{ inputs.llvm-version }}
+            RUNNER_TEMP: ${{ runner.temp }}
+          run: |
+            $FilePath = "$env:RUNNER_TEMP/artifacts/llvm-$env:LLVM_VERSION-windows-$env:CONFIG.zip"
+            $NewFilePath = "$env:RUNNER_TEMP/packages"
+            New-Item -Path $NewFilePath -ItemType Directory -Force | Out-Null
+
+            $FileBaseName = "llvm-$env:LLVM_VERSION-windows-$env:CONFIG"
+            $LimitSize = 1950MB
+            $FileSize = (Get-Item $FilePath).Length
+
+            if ($FileSize -gt $LimitSize) {
+              Write-Host "[INFO] 文件超过限制大小，开始分卷压缩"
+              $VolumeSize = "1900MB"
+              $OutputPath = Join-Path $NewFilePath "$FileBaseName.7z"
+              & 7z a $OutputPath $FilePath -v$VolumeSize -mx=6 -mmt-on
+              Write-Host "[INFO] 分卷压缩完成，输出到: $OutputPath"
+            } else {
+              Write-Host "[INFO] 文件大小正常，直接复制到: $NewFilePath"
+              Copy-Item $FilePath (Join-Path $NewFilePath ([System.IO.Path]::GetFileName($FilePath)))
+              Write-Host "[INFO] 复制完成"
+            }
+        - name: Upload to artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}
+            path: ${{ runner.temp }}/packages/llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}.*
