@@ -138,7 +138,7 @@ jobs:
           LLVM_VERSION: ${{ inputs.llvm-version }}
           RUNNER_TEMP: ${{ runner.temp }}
         run: |
-          $FilePath = "$env:RUNNER_TEMP/artifacts/llvm-$env:LLVM_VERSION-windows-$env:CONFIG.zip"
+          $FilePath = "$env:RUNNER_TEMP/artifacts/llvm-$env:LLVM_VERSION-windows-$env:CONFIG.7z"
           $NewFilePath = "$env:RUNNER_TEMP/packages"
           New-Item -Path $NewFilePath -ItemType Directory -Force | Out-Null
 
