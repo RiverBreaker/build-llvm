@@ -67,8 +67,8 @@ jobs:
                 -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" ^
                 -DLLVM_TARGETS_TO_BUILD="X86" ^
                 -DLLVM_ENABLE_LLD=OFF ^
-                -DPACKAGE_VENDOR="Build By Riverbreaker" ^
-                -DCLANG_VENDOR="Build By Riverbreaker" ^
+                -DPACKAGE_VENDOR="Build By @Riverbreaker" ^
+                -DCLANG_VENDOR="Build By @Riverbreaker" ^
                 -DCLANG_VERSION_EXTRA="(Github Actions CI Build)" ^
                 -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%"
           if errorlevel 1 (
