@@ -95,70 +95,128 @@ jobs:
           echo int main() { printf("Hello, World!\n"); return 0; } >> test.c
           "%LLVM_INSTALL_DIR%\bin\clang.exe" test.c -o test.exe && test.exe
           if errorlevel 1 exit /b 1
+          echo [INFO] 开始清理构建目录
+          powershell -command "Remove-Item -Recurse -Force '%LLVM_BUILD_DIR%'" || (echo [ERROR] 构建清理失败 && exit /b 1)
+          echo [INFO] 清理完成
 
-          rem ====== 7. 打包 ======
+          rem ====== 7. 打包（生成单文件 .7z，若过大则分卷） ======
           cd /d "%LLVM_INSTALL_DIR%"
-          set "ZIP_FILE=%PACKAGE_DIR%\llvm-${{ inputs.llvm-version }}-windows-%LLVM_CONFIG%.7z"
+          set "ZIP_FILE=%PACKAGE_DIR%\llvm-${{ inputs.llvm-version }}-win-x86-%LLVM_CONFIG%.7z"
           if exist "%ZIP_FILE%" del /f /q "%ZIP_FILE%"
           echo [INFO] 开始打包到：%ZIP_FILE%
-          7z a -tzip "%ZIP_FILE%" . -mx=6 -mmt=on
-          echo [INFO] 打包完成：%ZIP_FILE%
 
-          rem ====== 8. 清理 ======
-          powershell -command "Remove-Item -Recurse -Force '%LLVM_BUILD_DIR%'" || (echo [ERROR] 清理失败 && exit /b 1)
+          rem 先生成单文件 7z
+          7z a -t7z "%ZIP_FILE%" . -mx=6 -mmt=on
+          if errorlevel 1 (
+            echo [ERROR] 生成单文件压缩包失败
+            exit /b 1
+          )
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}
-          path: C:/llvm/packages/llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}.7z
+          rem 用 PowerShell 检查大小并根据情况分卷或复制
+          powershell -Command " \
+            $FilePath = '%ZIP_FILE%'; \
+            $NewFilePath = Join-Path $env:RUNNER_TEMP 'packages'; \
+            New-Item -Path $NewFilePath -ItemType Directory -Force | Out-Null; \
+            $LimitSize = 1950MB; \
+            try { $FileSize = (Get-Item $FilePath).Length } catch { Write-Host '[ERROR] 找不到压缩文件:' $FilePath; exit 1 } ; \
+            if ($FileSize -le $LimitSize) { \
+              Write-Host '[INFO] 压缩包大小正常 (' ($FileSize/1MB) 'MB)，复制到包目录'; \
+              Copy-Item $FilePath (Join-Path $NewFilePath (Split-Path $FilePath -Leaf)) -Force; \
+              Write-Host '[INFO] 复制完成'; \
+              exit 0; \
+            } else { \
+              Write-Host ('[INFO] 压缩包过大 (' + [math]::Round($FileSize/1MB,2) + 'MB)，开始分卷压缩到: ' + $NewFilePath); \
+              $OutputBase = 'llvm-${{ inputs.llvm-version }}-win-x86-%LLVM_CONFIG%'; \
+              $OutputPath = Join-Path $NewFilePath ($OutputBase + '.7z'); \
+              # 使用 7z 从 LLVM_INSTALL_DIR 的内容生成分卷压缩，输出到 $OutputPath (不会覆盖原始单文件包的位置) \
+              $source = '%LLVM_INSTALL_DIR%\*'; \
+              $args = @('a','-t7z',$OutputPath,$source,'-v1900m','-mx=6','-mmt=on'); \
+              Write-Host '[INFO] 运行命令: 7z ' + ($args -join ' '); \
+              $proc = Start-Process -FilePath '7z' -ArgumentList $args -NoNewWindow -Wait -PassThru -WorkingDirectory '%LLVM_INSTALL_DIR%'; \
+              if ($proc.ExitCode -ne 0) { \
+                Write-Host '[ERROR] 分卷压缩失败，保留原始单文件压缩包:' $FilePath; \
+                exit 1; \
+              } else { \
+                Write-Host '[INFO] 分卷压缩成功, 输出前缀:' $OutputPath; \
+                # 分卷成功后删除原始单文件压缩包（可选，按安全顺序在确认成功后删除） \
+                try { Remove-Item -Force $FilePath -ErrorAction Stop; Write-Host '[INFO] 已删除原始单文件压缩包:' $FilePath } catch { Write-Host '[WARN] 删除原始压缩包失败，可能是权限或路径问题'; } \
+                exit 0; \
+              } \
+            }"
 
-  upload-2-gh-release:
-    needs: build-llvm-windows
-    runs-on: windows-latest
-    permissions:
-      contents: write
-    strategy:
-      matrix:
-        config: [Debug, Release, RelWithDebInfo]
+          if errorlevel 1 (
+            echo [ERROR] 打包后处理失败
+            exit /b 1
+          )
+          echo [INFO] 打包处理完成
 
-    steps:
-      - uses: actions/checkout@v3
+          cd /d "%GITHUB_WORKSPACE%"
+          echo [INFO] 开始清理安装目录
+          powershell -command "Remove-Item -Recurse -Force '%LLVM_INSTALL_DIR%'" || (echo [ERROR] 安装清理失败 && exit /b 1)
+          echo [INFO] 清理完成
 
-      - name: download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}
-          path: ${{ runner.temp }}/artifacts
-
-      - name: make packages unless 2GB
+      - name: Create Tag if not exists
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         shell: pwsh
         env:
-          CONFIG: ${{ matrix.config }}
-          LLVM_VERSION: ${{ inputs.llvm-version }}
-          RUNNER_TEMP: ${{ runner.temp }}
+          REPO:      ${{ github.repository }}
+          TAG:       llvm-${{ inputs.llvm-version }}
         run: |
-          $FilePath = "$env:RUNNER_TEMP/artifacts/llvm-$env:LLVM_VERSION-windows-$env:CONFIG.7z"
-          $NewFilePath = "$env:RUNNER_TEMP/packages"
-          New-Item -Path $NewFilePath -ItemType Directory -Force | Out-Null
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          $FileBaseName = "llvm-$env:LLVM_VERSION-windows-$env:CONFIG"
-          $LimitSize = 1950MB
-          $FileSize = (Get-Item $FilePath).Length
-
-          if ($FileSize -gt $LimitSize) {
-            Write-Host "[INFO] 文件超过限制大小，开始分卷压缩"
-            $VolumeSize = "1900MB"
-            $OutputPath = Join-Path $NewFilePath "$FileBaseName.7z"
-            & 7z a $OutputPath $FilePath -v$VolumeSize -mx=6 -mmt-on
-            Write-Host "[INFO] 分卷压缩完成，输出到: $OutputPath"
+          # 1. 检查本地是否已存在 TAG
+          $localExists = (git tag --list $env:TAG) -ne ""
+          if ($localExists) {
+            Write-Host "Local tag $TAG already exists, skip creation."
           } else {
-            Write-Host "[INFO] 文件大小正常，直接复制到: $NewFilePath"
-            Copy-Item $FilePath (Join-Path $NewFilePath ([System.IO.Path]::GetFileName($FilePath)))
-            Write-Host "[INFO] 复制完成"
+            # 2. 检查远程是否已存在 TAG
+            $remoteTags = git ls-remote --tags origin $env:TAG
+            if ($remoteTags) {
+              Write-Host "Remote tag $TAG already exists, skip creation."
+            } else {
+              # 3. 本地＆远程都不存在时，创建并推送
+              git tag "$env:TAG"
+              git push origin "$env:TAG"
+              Write-Host "Tag $TAG created and pushed."
+            }
           }
-      - name: Upload to artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}
-          path: ${{ runner.temp }}/packages/llvm-${{ inputs.llvm-version }}-windows-${{ matrix.config }}.*
+
+      - name: Ensure Release exists or create
+        id: ensure_release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="llvm-${{ inputs.llvm-version }}"
+          # 查看是否已有该 tag 对应的 Release
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "found=existing" >> $GITHUB_OUTPUT
+          else
+            echo "found=new" >> $GITHUB_OUTPUT
+            gh release create "$TAG" \
+              --title "$TAG Auto Builds" \
+              --notes "Automated build of $TAG" \
+              --draft=false \
+              --prerelease=false
+          fi
+
+      - name: Upload build artifacts
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIG: ${{ matrix.config }}
+        run: |
+          $tag = "llvm-${{ inputs.llvm-version }}"
+          $dst = "$Env:RUNNER_TEMP/packages"
+          $base = "llvm-${{ inputs.llvm-version }}-win-x86-$Env:CONFIG"
+
+          # 根据是否有分卷自动上传
+          $parts = Get-ChildItem "$dst\$base.7z.*" -ErrorAction SilentlyContinue
+          if ($parts) {
+            $parts | Where Length -GT 0 | ForEach { gh release upload $tag $_.FullName --clobber }
+          }
+          elseif (Test-Path "$dst\$base.7z") {
+            $f = Get-Item "$dst\$base.7z"
+            if ($f.Length -gt 0) { gh release upload $tag $f.FullName --clobber }
+          }
