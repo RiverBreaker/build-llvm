@@ -67,9 +67,8 @@ jobs:
                 -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" ^
                 -DLLVM_TARGETS_TO_BUILD="X86" ^
                 -DLLVM_ENABLE_LLD=OFF ^
-                -DPACKAGE_VENDOR="Build By @Riverbreaker" ^
-                -DCLANG_VENDOR="Build By @Riverbreaker" ^
-                -DCLANG_VERSION_EXTRA="(Github Actions CI Build)" ^
+                -DPACKAGE_VENDOR="Build By @Riverbreaker (Github Actions CI Build)" ^
+                -DCLANG_VENDOR="Build By @Riverbreaker (Github Actions CI Build)" ^
                 -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%"
           if errorlevel 1 (
               echo [ERROR] CMake 生成失败
@@ -106,54 +105,53 @@ jobs:
           echo [INFO] 开始打包到：%ZIP_FILE%
 
           rem 先生成单文件 7z
+          echo [INFO] 开始生成单文件 7z 压缩包
           7z a -t7z "%ZIP_FILE%" . -mx=6 -mmt=on
           if errorlevel 1 (
             echo [ERROR] 生成单文件压缩包失败
             exit /b 1
           )
+          echo [INFO] 单文件压缩包生成完成
 
-          rem 用 PowerShell 检查大小并根据情况分卷或复制
-          powershell -Command " \
-            $FilePath = '%ZIP_FILE%'; \
-            $NewFilePath = Join-Path $env:RUNNER_TEMP 'packages'; \
-            New-Item -Path $NewFilePath -ItemType Directory -Force | Out-Null; \
-            $LimitSize = 1950MB; \
-            try { $FileSize = (Get-Item $FilePath).Length } catch { Write-Host '[ERROR] 找不到压缩文件:' $FilePath; exit 1 } ; \
-            if ($FileSize -le $LimitSize) { \
-              Write-Host '[INFO] 压缩包大小正常 (' ($FileSize/1MB) 'MB)，复制到包目录'; \
-              Copy-Item $FilePath (Join-Path $NewFilePath (Split-Path $FilePath -Leaf)) -Force; \
-              Write-Host '[INFO] 复制完成'; \
-              exit 0; \
-            } else { \
-              Write-Host ('[INFO] 压缩包过大 (' + [math]::Round($FileSize/1MB,2) + 'MB)，开始分卷压缩到: ' + $NewFilePath); \
-              $OutputBase = 'llvm-${{ inputs.llvm-version }}-win-x86-%LLVM_CONFIG%'; \
-              $OutputPath = Join-Path $NewFilePath ($OutputBase + '.7z'); \
-              # 使用 7z 从 LLVM_INSTALL_DIR 的内容生成分卷压缩，输出到 $OutputPath (不会覆盖原始单文件包的位置) \
-              $source = '%LLVM_INSTALL_DIR%\*'; \
-              $args = @('a','-t7z',$OutputPath,$source,'-v1900m','-mx=6','-mmt=on'); \
-              Write-Host '[INFO] 运行命令: 7z ' + ($args -join ' '); \
-              $proc = Start-Process -FilePath '7z' -ArgumentList $args -NoNewWindow -Wait -PassThru -WorkingDirectory '%LLVM_INSTALL_DIR%'; \
-              if ($proc.ExitCode -ne 0) { \
-                Write-Host '[ERROR] 分卷压缩失败，保留原始单文件压缩包:' $FilePath; \
-                exit 1; \
-              } else { \
-                Write-Host '[INFO] 分卷压缩成功, 输出前缀:' $OutputPath; \
-                # 分卷成功后删除原始单文件压缩包（可选，按安全顺序在确认成功后删除） \
-                try { Remove-Item -Force $FilePath -ErrorAction Stop; Write-Host '[INFO] 已删除原始单文件压缩包:' $FilePath } catch { Write-Host '[WARN] 删除原始压缩包失败，可能是权限或路径问题'; } \
-                exit 0; \
-              } \
-            }"
+      - name: Package build to output
+        shell: pwsh
+        env:
+          CONFIG: ${{ matrix.config }}
+          ZIP_FILE: C:\llvm\packages\llvm-${{ inputs.llvm-version }}-win-x86-${{ matrix.config }}.7z
+          LLVM_INSTALL_DIR: C:\llvm\install\${{ matrix.config }}
+        run: |
+          $FilePath = $env:ZIP_FILE
+          $NewFilePath = Join-Path $env:RUNNER_TEMP 'packages'
+          New-Item -Path $NewFilePath -ItemType Directory -Force | Out-Null
+          $LimitSize = 1950MB
 
-          if errorlevel 1 (
-            echo [ERROR] 打包后处理失败
-            exit /b 1
-          )
-          echo [INFO] 打包处理完成
+          try {
+            $FileSize = (Get-Item $FilePath).Length
+          } catch {
+            Write-Host "[ERROR] 找不到压缩文件: $FilePath"
+            exit 1
+          }
 
-          cd /d "%GITHUB_WORKSPACE%"
-          echo [INFO] 开始清理安装目录
-          powershell -command "Remove-Item -Recurse -Force '%LLVM_INSTALL_DIR%'" || (echo [ERROR] 安装清理失败 && exit /b 1)
-          echo [INFO] 清理完成
+          if ($FileSize -le $LimitSize) {
+            Write-Host "[INFO] 压缩包大小正常 ($([math]::Round($FileSize/1MB,2)) MB)，复制到包目录"
+            Copy-Item $FilePath (Join-Path $NewFilePath (Split-Path $FilePath -Leaf)) -Force
+            Write-Host "[INFO] 复制完成"
+          } else {
+            Write-Host "[INFO] 压缩包过大 ($([math]::Round($FileSize/1MB,2)) MB)，开始分卷压缩到: $NewFilePath"
+            $OutputBase = "llvm-${{ inputs.llvm-version }}-win-x86-$Env:CONFIG"
+            $OutputPath = Join-Path $NewFilePath ($OutputBase + '.7z')
+            $source = (Join-Path $env:LLVM_INSTALL_DIR '*')
+            $args = @('a','-t7z',$OutputPath,$source,'-v1950m','-mx=6','-mmt=on')
+            Write-Host '[INFO] 运行命令: 7z ' + ($args -join ' ')
+            $proc = Start-Process -FilePath '7z' -ArgumentList $args -NoNewWindow -Wait -PassThru -WorkingDirectory $env:LLVM_INSTALL_DIR
+            if ($proc.ExitCode -ne 0) {
+              Write-Host '[ERROR] 分卷压缩失败，保留原始单文件压缩包:' $FilePath
+              exit 1
+            } else {
+              Write-Host "[INFO] 分卷压缩成功, 输出前缀: $OutputPath"
+              try { Remove-Item -Force $FilePath -ErrorAction Stop; Write-Host "[INFO] 已删除原始单文件压缩包: $FilePath" } catch { Write-Host "[WARN] 删除原始压缩包失败"; }
+            }
+          }
 
       - name: Create Tag if not exists
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
