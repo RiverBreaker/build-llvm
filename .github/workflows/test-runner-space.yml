@@ -9,6 +9,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-python@v7
+        id: setup_python
+        with:
+          python-version: '3.11'
+
+      - name: python local
+        shell: pwsh
+        run: |
+          Write-Host "Python is installed at: $env:pythonLocation"
+          echo "=================================="
+          $pythonPath = "${{ steps.setup_python.outputs.python-path }}"
+          Write-Host "Python executable is at: $pythonPath"
+          $pythonDir = Split-Path $pythonPath -Parent
+          Write-Host "Python directory is: $pythonDir"
 
       - name: Test Space
         shell: powershell

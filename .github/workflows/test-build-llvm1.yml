@@ -16,9 +16,14 @@ jobs:
 
     strategy:
       matrix:
-        config: [Debug, Release, RelWithDebInfo]
+        config: [Release, RelWithDebInfo]
+        arch: [X86, RISCV, AArch64, ARM, WebAssembly]
     steps:
       - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
 
       - name: Enable long paths
         shell: pwsh
@@ -37,6 +42,7 @@ jobs:
         shell: cmd
         env:
           LLVM_CONFIG: ${{ matrix.config }}
+          LLVM_ARCH: ${{ matrix.arch }}
         run: |
           rem ====== 用户可调路径 ======
           set "VS_ROOT_DIR=C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
@@ -64,12 +70,11 @@ jobs:
                 -B "%LLVM_BUILD_DIR%" ^
                 -G Ninja ^
                 -DCMAKE_BUILD_TYPE=%LLVM_CONFIG% ^
-                -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" ^
-                -DLLVM_TARGETS_TO_BUILD="X86" ^
-                -DLLVM_ENABLE_LLD=OFF ^
+                -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lldb;lld;compiler-rt;mlir" ^
+                -DLLVM_TARGETS_TO_BUILD=%LLVM_ARCH% ^
                 -DLLVM_ENABLE_RTTI=ON ^
-                -DPACKAGE_VENDOR="Build By @Riverbreaker (Github Actions CI Build)" ^
-                -DCLANG_VENDOR="Build By @Riverbreaker (Github Actions CI Build)" ^
+                -DPACKAGE_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
+                -DCLANG_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
                 -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%"
           if errorlevel 1 (
               echo [ERROR] CMake 生成失败
@@ -87,6 +92,21 @@ jobs:
           ninja -C "%LLVM_BUILD_DIR%" install
           echo [INFO] 安装完成，目录：%LLVM_INSTALL_DIR%
 
+          rem ====== 5.5 体积优化（可选） ======
+          echo [INFO] Cleaning up unnecessary files to reduce package size...
+          rem 如果不需要调试符号，删除所有 .pdb 文件
+          if "%LLVM_CONFIG%"=="Release" (
+              del /s /q "%LLVM_INSTALL_DIR%\*.pdb" 2>nul
+              echo [INFO] PDB files removed for Release build.
+          ) else (
+              rem 如果是 RelWithDebInfo，保留 .pdb，仅删除测试工具
+              echo [INFO] Keeping PDB files for RelWithDebInfo build.
+          )
+          rem 统一删除测试工具（这些无论哪个配置都不需要）
+          del /s /q "%LLVM_INSTALL_DIR%\bin\*Tests.exe" 2>nul
+          del /s /q "%LLVM_INSTALL_DIR%\bin\*Test.exe" 2>nul
+          echo [INFO] Cleanup complete.
+
           rem ====== 6. 验证 ======
           echo [INFO] 验证安装结果
           "%LLVM_INSTALL_DIR%\bin\clang.exe" --version
@@ -101,7 +121,7 @@ jobs:
 
           rem ====== 7. 打包（生成单文件 .7z，若过大则分卷） ======
           cd /d "%LLVM_INSTALL_DIR%"
-          set "ZIP_FILE=%PACKAGE_DIR%\llvm-${{ inputs.llvm-version }}-win-x86-%LLVM_CONFIG%.7z"
+          set "ZIP_FILE=%PACKAGE_DIR%\llvm-${{ inputs.llvm-version }}-win-%LLVM_ARCH%-%LLVM_CONFIG%.7z"
           if exist "%ZIP_FILE%" del /f /q "%ZIP_FILE%"
           echo [INFO] 开始打包到：%ZIP_FILE%
 
@@ -118,8 +138,9 @@ jobs:
         shell: pwsh
         env:
           CONFIG: ${{ matrix.config }}
-          ZIP_FILE: C:\llvm\packages\llvm-${{ inputs.llvm-version }}-win-x86-${{ matrix.config }}.7z
+          ZIP_FILE: C:\llvm\packages\llvm-${{ inputs.llvm-version }}-win-${{ matrix.arch }}-${{ matrix.config }}.7z
           LLVM_INSTALL_DIR: C:\llvm\install\${{ matrix.config }}
+          LLVM_ARCH: ${{ matrix.arch }}
         run: |
           $FilePath = $env:ZIP_FILE
           $NewFilePath = Join-Path $env:RUNNER_TEMP 'packages'
@@ -139,7 +160,7 @@ jobs:
             Write-Host "[INFO] 复制完成"
           } else {
             Write-Host "[INFO] 压缩包过大 ($([math]::Round($FileSize/1MB,2)) MB)，开始分卷压缩到: $NewFilePath"
-            $OutputBase = "llvm-${{ inputs.llvm-version }}-win-x86-$Env:CONFIG"
+            $OutputBase = "llvm-${{ inputs.llvm-version }}-win-$Env:LLVM_ARCH-$Env:CONFIG"
             $OutputPath = Join-Path $NewFilePath ($OutputBase + '.7z')
             $source = (Join-Path $env:LLVM_INSTALL_DIR '*')
             $args = @('a','-t7z',$OutputPath,$source,'-v1950m','-mx=6','-mmt=on')
@@ -205,10 +226,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CONFIG: ${{ matrix.config }}
+          ARCH: ${{ matrix.arch }}
         run: |
           $tag = "llvm-${{ inputs.llvm-version }}"
           $dst = "$Env:RUNNER_TEMP/packages"
-          $base = "llvm-${{ inputs.llvm-version }}-win-x86-$Env:CONFIG"
+          $base = "llvm-${{ inputs.llvm-version }}-win-$Env:ARCH-$Env:CONFIG"
 
           # 根据是否有分卷自动上传
           $parts = Get-ChildItem "$dst\$base.7z.*" -ErrorAction SilentlyContinue
