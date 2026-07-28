@@ -23,6 +23,7 @@ jobs:
           Write-Host "Python executable is at: $pythonPath"
           $pythonDir = Split-Path $pythonPath -Parent
           Write-Host "Python directory is: $pythonDir"
+          Get-ChildItem -Path $env:pythonLocation -Filter "python*.dll" -Recurse
 
       - name: Test Space
         shell: powershell

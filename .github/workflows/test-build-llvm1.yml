@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         config: [Release, RelWithDebInfo]
-        arch: [X86, RISCV, AArch64, ARM, WebAssembly]
+        arch: [X86]
     steps:
       - uses: actions/checkout@v3
 
@@ -51,9 +51,10 @@ jobs:
           set "LLVM_INSTALL_ROOT=C:\llvm"
           set "LLVM_INSTALL_DIR=%LLVM_INSTALL_ROOT%\install\%LLVM_CONFIG%"
           set "PACKAGE_DIR=%LLVM_INSTALL_ROOT%\packages"
+          set "LLVM_LICENSE_DIR=%LLVM_INSTALL_DIR%\LICENSE"
 
           rem ====== 创建目录 ======
-          for %%D in ("%LLVM_CODE_BASE%" "%LLVM_BUILD_DIR%" "%LLVM_INSTALL_ROOT%" "%LLVM_INSTALL_DIR%" "%PACKAGE_DIR%") do (
+          for %%D in ("%LLVM_CODE_BASE%" "%LLVM_BUILD_DIR%" "%LLVM_INSTALL_ROOT%" "%LLVM_INSTALL_DIR%" "%PACKAGE_DIR%" "%LLVM_LICENSE_DIR%" ) do (
              if not exist "%%D" mkdir "%%D"
           )
 
@@ -106,6 +107,10 @@ jobs:
           del /s /q "%LLVM_INSTALL_DIR%\bin\*Tests.exe" 2>nul
           del /s /q "%LLVM_INSTALL_DIR%\bin\*Test.exe" 2>nul
           echo [INFO] Cleanup complete.
+          echo [INFO] Copy Python311.dll to LLVM bin directory
+          copy /y "%pythonLocation%\python311.dll" "%LLVM_INSTALL_DIR%\bin"
+          echo [INFO] Copy License file to llvm install dir.
+          copy /y "%LLVM_CODE_BASE%\LICENSE.TXT" "%LLVM_LICENSE_DIR%"
 
           rem ====== 6. 验证 ======
           echo [INFO] 验证安装结果
@@ -121,7 +126,7 @@ jobs:
 
           rem ====== 7. 打包（生成单文件 .7z，若过大则分卷） ======
           cd /d "%LLVM_INSTALL_DIR%"
-          set "ZIP_FILE=%PACKAGE_DIR%\llvm-${{ inputs.llvm-version }}-win-%LLVM_ARCH%-%LLVM_CONFIG%.7z"
+          set "ZIP_FILE=%PACKAGE_DIR%\llvm-${{ inputs.llvm-version }}-win-%LLVM_ARCH%-%LLVM_CONFIG%-MSVC-2022.7z"
           if exist "%ZIP_FILE%" del /f /q "%ZIP_FILE%"
           echo [INFO] 开始打包到：%ZIP_FILE%
 
@@ -138,7 +143,7 @@ jobs:
         shell: pwsh
         env:
           CONFIG: ${{ matrix.config }}
-          ZIP_FILE: C:\llvm\packages\llvm-${{ inputs.llvm-version }}-win-${{ matrix.arch }}-${{ matrix.config }}.7z
+          ZIP_FILE: C:\llvm\packages\llvm-${{ inputs.llvm-version }}-win-${{ matrix.arch }}-${{ matrix.config }}-MSVC-2022.7z
           LLVM_INSTALL_DIR: C:\llvm\install\${{ matrix.config }}
           LLVM_ARCH: ${{ matrix.arch }}
         run: |
@@ -160,7 +165,7 @@ jobs:
             Write-Host "[INFO] 复制完成"
           } else {
             Write-Host "[INFO] 压缩包过大 ($([math]::Round($FileSize/1MB,2)) MB)，开始分卷压缩到: $NewFilePath"
-            $OutputBase = "llvm-${{ inputs.llvm-version }}-win-$Env:LLVM_ARCH-$Env:CONFIG"
+            $OutputBase = "llvm-${{ inputs.llvm-version }}-win-$Env:LLVM_ARCH-$Env:CONFIG-MSVC-2022"
             $OutputPath = Join-Path $NewFilePath ($OutputBase + '.7z')
             $source = (Join-Path $env:LLVM_INSTALL_DIR '*')
             $args = @('a','-t7z',$OutputPath,$source,'-v1950m','-mx=6','-mmt=on')
@@ -230,7 +235,7 @@ jobs:
         run: |
           $tag = "llvm-${{ inputs.llvm-version }}"
           $dst = "$Env:RUNNER_TEMP/packages"
-          $base = "llvm-${{ inputs.llvm-version }}-win-$Env:ARCH-$Env:CONFIG"
+          $base = "llvm-${{ inputs.llvm-version }}-win-$Env:ARCH-$Env:CONFIG-MSVC-2022"
 
           # 根据是否有分卷自动上传
           $parts = Get-ChildItem "$dst\$base.7z.*" -ErrorAction SilentlyContinue
