@@ -29,6 +29,7 @@ jobs:
         shell: pwsh
         run: |
           git config --system core.longpaths true
+          git config --global core.autocrlf false
           Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
             -Name "LongPathsEnabled" -Value 1
 
@@ -79,12 +80,19 @@ jobs:
                 -B "%LLVM_BUILD_DIR%" ^
                 -G Ninja ^
                 -DCMAKE_BUILD_TYPE=%LLVM_CONFIG% ^
-                -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;compiler-rt" ^
+                -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld;lldb;flang" ^
+                -DLLVM_ENABLE_RUNTIMES="compiler-rt;openmp"
                 -DLLVM_TARGETS_TO_BUILD=%LLVM_ARCH% ^
-                -DLLVM_ENABLE_RTTI=ON ^
+                -DLLVM_ENABLE_RTTI=OFF ^
+                -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON ^
+                -DCOMPILER_RT_BUILD_LIBFUZZER=OFF ^
+                -DCOMPILER_RT_BUILD_ORC=OFF ^
                 -DPACKAGE_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
                 -DCLANG_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
-                -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%"
+                -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%" ^
+                -DCMAKE_EXE_LINKER_FLAGS="/MANIFEST:NO" ^
+                -DCMAKE_MODULE_LINKER_FLAGS="/MANIFEST:NO" ^
+                -DCMAKE_SHARED_LINKER_FLAGS="/MANIFEST:NO"
           if errorlevel 1 (
               echo [ERROR] CMake 生成失败
               exit /b 1
@@ -160,6 +168,7 @@ jobs:
         shell: pwsh
         run: |
           git config --system core.longpaths true
+          git config --global core.autocrlf false
           Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
             -Name "LongPathsEnabled" -Value 1
 
@@ -210,12 +219,20 @@ jobs:
                 -B "%LLVM_BUILD_DIR%" ^
                 -G Ninja ^
                 -DCMAKE_BUILD_TYPE=%LLVM_CONFIG% ^
-                -DLLVM_ENABLE_PROJECTS="lldb;lld;mlir" ^
+                -DLLVM_ENABLE_PROJECTS="mlir" ^
                 -DLLVM_TARGETS_TO_BUILD=%LLVM_ARCH% ^
-                -DLLVM_ENABLE_RTTI=ON ^
+                -DLLVM_ENABLE_RTTI=OFF ^
+                -DLLVM_DIR="%LLVM_INSTALL_DIR%\lib\cmake\llvm" ^
+                -DClang_DIR="%LLVM_INSTALL_DIR%\lib\cmake\clang" ^
+                -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON ^
+                -DCOMPILER_RT_BUILD_LIBFUZZER=OFF ^
+                -DCOMPILER_RT_BUILD_ORC=OFF ^
                 -DPACKAGE_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
                 -DCLANG_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
-                -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%"
+                -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%" ^
+                -DCMAKE_EXE_LINKER_FLAGS="/MANIFEST:NO" ^
+                -DCMAKE_MODULE_LINKER_FLAGS="/MANIFEST:NO" ^
+                -DCMAKE_SHARED_LINKER_FLAGS="/MANIFEST:NO"
           if errorlevel 1 (
               echo [ERROR] CMake 生成失败
               exit /b 1
