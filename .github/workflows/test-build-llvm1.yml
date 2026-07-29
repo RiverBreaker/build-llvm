@@ -32,13 +32,21 @@ jobs:
           Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
             -Name "LongPathsEnabled" -Value 1
 
+      - name: Cache LLVM Source code
+        id: cache-llvm-source-code
+        uses: actions/cache@v6
+        with:
+          key: llvm-src-${{ inputs.llvm-version }}-windows
+          path: ${{ github.workspace }}/llvm-project
+
       - name: Get LLVM source code
+        if: steps.cache-llvm-source-code.outputs.cache-hit != 'true'
         run: |
           git clone https://github.com/llvm/llvm-project.git
           cd llvm-project
           git checkout llvmorg-${{ inputs.llvm-version }} -b llvm-${{ inputs.llvm-version }}
 
-      - name: Build llvm for windows
+      - name: Build llvm-base for windows
         shell: cmd
         env:
           LLVM_CONFIG: ${{ matrix.config }}
@@ -71,7 +79,138 @@ jobs:
                 -B "%LLVM_BUILD_DIR%" ^
                 -G Ninja ^
                 -DCMAKE_BUILD_TYPE=%LLVM_CONFIG% ^
-                -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lldb;lld;compiler-rt;mlir" ^
+                -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;compiler-rt" ^
+                -DLLVM_TARGETS_TO_BUILD=%LLVM_ARCH% ^
+                -DLLVM_ENABLE_RTTI=ON ^
+                -DPACKAGE_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
+                -DCLANG_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
+                -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%"
+          if errorlevel 1 (
+              echo [ERROR] CMake 生成失败
+              exit /b 1
+          )
+
+          rem ====== 3. 编译 ======
+          ninja -C "%LLVM_BUILD_DIR%" -j8
+          if errorlevel 1 (
+              echo [ERROR] 编译失败
+              exit /b 1
+          )
+
+          rem ====== 5. 安装 ======
+          ninja -C "%LLVM_BUILD_DIR%" install
+          echo [INFO] 安装完成，目录：%LLVM_INSTALL_DIR%
+
+          rem ====== 5.5 体积优化（可选） ======
+          echo [INFO] Cleaning up unnecessary files to reduce package size...
+          rem 如果不需要调试符号，删除所有 .pdb 文件
+          if "%LLVM_CONFIG%"=="Release" (
+              del /s /q "%LLVM_INSTALL_DIR%\*.pdb" 2>nul
+              echo [INFO] PDB files removed for Release build.
+          ) else (
+              rem 如果是 RelWithDebInfo，保留 .pdb，仅删除测试工具
+              echo [INFO] Keeping PDB files for RelWithDebInfo build.
+          )
+          rem 统一删除测试工具（这些无论哪个配置都不需要）
+          del /s /q "%LLVM_INSTALL_DIR%\bin\*Tests.exe" 2>nul
+          del /s /q "%LLVM_INSTALL_DIR%\bin\*Test.exe" 2>nul
+          echo [INFO] Cleanup complete.
+
+          rem ====== 6. 验证 ======
+          echo [INFO] 验证安装结果
+          "%LLVM_INSTALL_DIR%\bin\clang.exe" --version
+          echo [INFO] 运行测试
+          echo #include ^<stdio.h^> > test.c
+          echo int main() { printf("Hello, World!\n"); return 0; } >> test.c
+          "%LLVM_INSTALL_DIR%\bin\clang.exe" test.c -o test.exe && test.exe
+          if errorlevel 1 exit /b 1
+          echo [INFO] 开始清理构建目录
+          powershell -command "Remove-Item -Recurse -Force '%LLVM_BUILD_DIR%'" || (echo [ERROR] 构建清理失败 && exit /b 1)
+          echo [INFO] 清理完成
+
+      - name: Upload-to-artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: llvm-base-${{ matrix.arch }}-${{ matrix.config }}
+          path: "C:/llvm/install/${{ matrix.config }}"
+
+  build-llvm-expand:
+    runs-on: windows-2022
+    need: build-llvm-windows
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        config: [Release, RelWithDebInfo]
+        arch: [X86]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: llvm-base-${{ matrix.arch }}-${{ matrix.config }}
+          path: "C:/llvm/install/${{ matrix.config }}"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Enable long paths
+        shell: pwsh
+        run: |
+          git config --system core.longpaths true
+          Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+            -Name "LongPathsEnabled" -Value 1
+
+      - name: Cache LLVM Source code
+        id: cache-llvm-source-code
+        uses: actions/cache@v6
+        with:
+          key: llvm-src-${{ inputs.llvm-version }}-windows
+          path: ${{ github.workspace }}/llvm-project
+
+      - name: Get LLVM source code
+        if: steps.cache-llvm-source-code.outputs.cache-hit != 'true'
+        run: |
+          git clone https://github.com/llvm/llvm-project.git
+          cd llvm-project
+          git checkout llvmorg-${{ inputs.llvm-version }} -b llvm-${{ inputs.llvm-version }}
+
+      - name: Build llvm-extend for windows
+        shell: cmd
+        env:
+          LLVM_CONFIG: ${{ matrix.config }}
+          LLVM_ARCH: ${{ matrix.arch }}
+        run: |
+          rem ====== 用户可调路径 ======
+          set "VS_ROOT_DIR=C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
+          set "LLVM_CODE_BASE=%GITHUB_WORKSPACE%\llvm-project"
+          set "LLVM_BUILD_DIR=%GITHUB_WORKSPACE%\build\%LLVM_CONFIG%"
+          set "LLVM_INSTALL_ROOT=C:\llvm"
+          set "LLVM_INSTALL_DIR=%LLVM_INSTALL_ROOT%\install\%LLVM_CONFIG%"
+          set "PACKAGE_DIR=%LLVM_INSTALL_ROOT%\packages"
+          set "LLVM_LICENSE_DIR=%LLVM_INSTALL_DIR%\LICENSE"
+
+          rem ====== 创建目录 ======
+          for %%D in ("%LLVM_CODE_BASE%" "%LLVM_BUILD_DIR%" "%LLVM_INSTALL_ROOT%" "%LLVM_INSTALL_DIR%" "%PACKAGE_DIR%" "%LLVM_LICENSE_DIR%" ) do (
+             if not exist "%%D" mkdir "%%D"
+          )
+
+          rem ====== 1. 拷贝源码 ======
+          cd /d "%LLVM_CODE_BASE%"
+          if not exist llvm\CMakeLists.txt (
+              echo [ERROR] 源码目录下找不到 llvm\CMakeLists.txt
+              exit /b 1
+          )
+
+          rem ====== 2. 生成构建树 ======
+          call "%VS_ROOT_DIR%\VC\Auxiliary\Build\vcvarsall.bat" amd64 || (echo vcvarsall failed && exit /b 1)
+          cmake -S llvm ^
+                -B "%LLVM_BUILD_DIR%" ^
+                -G Ninja ^
+                -DCMAKE_BUILD_TYPE=%LLVM_CONFIG% ^
+                -DLLVM_ENABLE_PROJECTS="lldb;lld;mlir" ^
                 -DLLVM_TARGETS_TO_BUILD=%LLVM_ARCH% ^
                 -DLLVM_ENABLE_RTTI=ON ^
                 -DPACKAGE_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
