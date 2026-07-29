@@ -94,6 +94,8 @@ jobs:
                 -DCOMPILER_RT_BUILD_ORC=OFF ^
                 -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
                 -DCMAKE_CXX_COMPILER_LAUNCHER=sccache ^
+                -DCMAKE_C_FLAGS_RELWITHDEBINFO="/Z7 /O2 /Ob1 /DNDEBUG" ^
+                -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="/Z7 /O2 /Ob1 /DNDEBUG" ^
                 -DPACKAGE_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
                 -DCLANG_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
                 -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%" ^
@@ -245,6 +247,8 @@ jobs:
                 -DCOMPILER_RT_BUILD_ORC=OFF ^
                 -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
                 -DCMAKE_CXX_COMPILER_LAUNCHER=sccache ^
+                -DCMAKE_C_FLAGS_RELWITHDEBINFO="/Z7 /O2 /Ob1 /DNDEBUG" ^
+                -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="/Z7 /O2 /Ob1 /DNDEBUG" ^
                 -DPACKAGE_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
                 -DCLANG_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
                 -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%" ^
