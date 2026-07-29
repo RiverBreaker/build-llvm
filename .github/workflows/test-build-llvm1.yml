@@ -136,7 +136,7 @@ jobs:
 
   build-llvm-expand:
     runs-on: windows-2022
-    need: build-llvm-windows
+    needs: build-llvm-windows
     permissions:
       contents: write
 
