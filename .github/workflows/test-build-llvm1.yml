@@ -11,6 +11,9 @@ on:
 jobs:
   build-llvm-windows:
     runs-on: windows-2022
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_CACHE_SIZE: "10G"
     permissions:
       contents: write
 
@@ -24,6 +27,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
+
+      - uses: mozilla-actions/sccache-action@v0.0.11
 
       - name: Enable long paths
         shell: pwsh
@@ -87,6 +92,8 @@ jobs:
                 -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON ^
                 -DCOMPILER_RT_BUILD_LIBFUZZER=OFF ^
                 -DCOMPILER_RT_BUILD_ORC=OFF ^
+                -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
+                -DCMAKE_CXX_COMPILER_LAUNCHER=sccache ^
                 -DPACKAGE_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
                 -DCLANG_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
                 -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%" ^
@@ -135,6 +142,8 @@ jobs:
           echo [INFO] 开始清理构建目录
           powershell -command "Remove-Item -Recurse -Force '%LLVM_BUILD_DIR%'" || (echo [ERROR] 构建清理失败 && exit /b 1)
           echo [INFO] 清理完成
+      - name: Show sccache stats
+        run: sccache --show-stats
 
       - name: Upload-to-artifact
         uses: actions/upload-artifact@v7
@@ -145,6 +154,9 @@ jobs:
   build-llvm-expand:
     runs-on: windows-2022
     needs: build-llvm-windows
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_CACHE_SIZE: "10G"
     permissions:
       contents: write
 
@@ -163,6 +175,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
+
+      - uses: mozilla-actions/sccache-action@v0.0.11
 
       - name: Enable long paths
         shell: pwsh
@@ -229,6 +243,8 @@ jobs:
                 -DLLVM_PARALLEL_COMPILE_JOBS=2 ^
                 -DLLVM_PARALLEL_LINK_JOBS=2 ^
                 -DCOMPILER_RT_BUILD_ORC=OFF ^
+                -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
+                -DCMAKE_CXX_COMPILER_LAUNCHER=sccache ^
                 -DPACKAGE_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
                 -DCLANG_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
                 -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%" ^
@@ -296,6 +312,9 @@ jobs:
             exit /b 1
           )
           echo [INFO] 单文件压缩包生成完成
+
+      - name: Show sccache stats
+        run: sccache --show-stats
 
       - name: Package build to output
         shell: pwsh
