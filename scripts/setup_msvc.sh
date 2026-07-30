@@ -6,38 +6,36 @@ export MSYS2_ARG_CONV_EXCL="*"
 
 # 1. 获取 VS 路径
 VSWHERE_EXE="C:/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
-VS_PATH=$("$VSWHERE_EXE" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | tr -d '\r\n' | sed 's/\\/\//g')
+VS_PATH=$("$VSWHERE_EXE" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | tr -d '\r\n')
 VCVARS_BAT="${VS_PATH}/VC/Auxiliary/Build/vcvarsall.bat"
 
 echo "找到 Visual Studio 路径: ${VS_PATH}"
-echo "vcvarsall.bat 路径: ${VCVARS_BAT}"
 
-# 2. 检查文件是否存在
-if [ ! -f "${VCVARS_BAT}" ]; then
-    echo "❌ 错误：找不到 vcvarsall.bat，请确认 VS 安装完整。"
+if [ -z "$VS_PATH" ]; then
+    echo "❌ 未找到 Visual Studio 安装"
     exit 1
 fi
 
-# 3. 执行 vcvarsall.bat，捕获输出和错误
-echo "⏳ 正在执行 vcvarsall.bat ..."
-set +e
-CMD_OUTPUT=$(cmd.exe /c "call \"${VCVARS_BAT}\" x64 && set" 2>&1)
-CMD_EXIT=$?
-set -e
+pwsh -NoProfile -NonInteractive -Command "
+    # 加载 DevShell 模块
+    Import-Module (Join-Path \"${VS_PATH}\" 'Common7/Tools/Microsoft.VisualStudio.DevShell.dll') -ErrorAction Stop
 
-echo "cmd.exe 退出码: $CMD_EXIT"
-if [ $CMD_EXIT -ne 0 ]; then
-    echo "❌ cmd.exe 执行失败，错误输出："
-    echo "$CMD_OUTPUT"
-    exit $CMD_EXIT
-fi
+    # 进入 VS 开发环境（架构设为 amd64，可根据需要改为 x86、arm64 等）
+    Enter-VsDevShell -VsInstallPath \"${VS_PATH}\" -Arch amd64 -SkipAutomaticLocation -ErrorAction Stop
 
-# 4. 提取需要的环境变量
-echo "$CMD_OUTPUT" | grep -E '^(PATH|INCLUDE|LIB|LIBPATH|VCINSTALLDIR|WindowsSdkDir|WindowsSDKVersion|VCToolsInstallDir)=' | sed 's/\r$//' >> "$GITHUB_ENV"
+    # 获取当前进程的所有环境变量，过滤出我们需要的（或全部导出）
+    # 推荐导出所有变量，因为 MSVC 依赖很多变量（PATH, INCLUDE, LIB, LIBPATH, WindowsSdkDir, ...）
+    Get-ChildItem env: | ForEach-Object {
+        # 只输出环境变量名和值，格式为 KEY=VALUE
+        # 注意：如果值包含换行符等特殊字符，需额外处理，但通常没有
+        Write-Output \"\$(\$_.Name)=\$(\$_.Value)\"
+    }
+" | grep -E '^(PATH|INCLUDE|LIB|LIBPATH|VCINSTALLDIR|WindowsSdkDir|WindowsSDKVersion|VCToolsInstallDir)=' | sed 's/\r$//' >> "$GITHUB_ENV"
 
-# 5. 检查是否成功写入
-echo "📋 已写入 GITHUB_ENV 的内容："
-grep -E '^(PATH|INCLUDE|LIB|LIBPATH|VCINSTALLDIR|WindowsSdkDir|WindowsSDKVersion|VCToolsInstallDir)=' "$GITHUB_ENV" || echo "⚠️ 警告：没有任何匹配的环境变量被写入！"
+# 3. 检查是否成功写入
+echo "📋 已写入 GITHUB_ENV 的内容（前几行）："
+head -n 5 "$GITHUB_ENV" || echo "⚠️ 警告：GITHUB_ENV 为空"
 
 echo "✅ MSVC 环境注入完成"
-which cl.exe || echo "⚠️ 未找到 cl.exe (请检查上方的环境变量输出)"
+# 验证 cl.exe（此时 PATH 应已更新）
+which cl.exe || echo "⚠️ 未找到 cl.exe（请检查上方环境变量）"
