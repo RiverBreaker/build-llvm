@@ -94,7 +94,7 @@ jobs:
                 -DCOMPILER_RT_BUILD_ORC=OFF ^
                 -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
                 -DCMAKE_CXX_COMPILER_LAUNCHER=sccache ^
-                -DLLVM_PARALLEL_COMPILE_JOBS=2 ^
+                -DLLVM_INCLUDE_TESTS=OFF ^
                 -DLLVM_PARALLEL_LINK_JOBS=4 ^
                 -DCMAKE_C_FLAGS_RELWITHDEBINFO="/Z7 /O2 /Ob1 /DNDEBUG" ^
                 -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="/Z7 /O2 /Ob1 /DNDEBUG" ^
@@ -136,7 +136,7 @@ jobs:
           )
           rem 统一删除测试工具（这些无论哪个配置都不需要）
           del /s /q "%LLVM_INSTALL_DIR%\bin\*Tests.exe" 2>nul
-          del /s /q "%LLVM_INSTALL_DIR%\bin\*Test.exe" 2>nul
+          # del /s /q "%LLVM_INSTALL_DIR%\bin\*Test.exe" 2>nul
           echo [INFO] Cleanup complete.
 
           rem ====== 6. 验证 ======
@@ -247,8 +247,7 @@ jobs:
                 -DLLVM_DIR="%LLVM_INSTALL_DIR%\lib\cmake\llvm" ^
                 -DClang_DIR="%LLVM_INSTALL_DIR%\lib\cmake\clang" ^
                 -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON ^
-                -DLLVM_PARALLEL_COMPILE_JOBS=2 ^
-                -DLLVM_PARALLEL_LINK_JOBS=2 ^
+                -DLLVM_PARALLEL_LINK_JOBS=4 ^
                 -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
                 -DCMAKE_CXX_COMPILER_LAUNCHER=sccache ^
                 -DCMAKE_C_FLAGS_RELWITHDEBINFO="/Z7 /O2 /Ob1 /DNDEBUG" ^
@@ -292,8 +291,7 @@ jobs:
                 -DClang_DIR="%LLVM_INSTALL_DIR%\lib\cmake\clang" ^
                 -DMLIR_DIR="%LLVM_INSTALL_DIR%\lib\cmake\mlir" ^
                 -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON ^
-                -DLLVM_PARALLEL_COMPILE_JOBS=2 ^
-                -DLLVM_PARALLEL_LINK_JOBS=2 ^
+                -DLLVM_PARALLEL_LINK_JOBS=4 ^
                 -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
                 -DCMAKE_CXX_COMPILER_LAUNCHER=sccache ^
                 -DCMAKE_C_FLAGS_RELWITHDEBINFO="/Z7 /O2 /Ob1 /DNDEBUG" ^
@@ -335,7 +333,7 @@ jobs:
           )
           rem 统一删除测试工具（这些无论哪个配置都不需要）
           del /s /q "%LLVM_INSTALL_DIR%\bin\*Tests.exe" 2>nul
-          del /s /q "%LLVM_INSTALL_DIR%\bin\*Test.exe" 2>nul
+          # del /s /q "%LLVM_INSTALL_DIR%\bin\*Test.exe" 2>nul
           echo [INFO] Cleanup complete.
           echo [INFO] Copy Python311.dll to LLVM bin directory
           copy /y "%pythonLocation%\python311.dll" "%LLVM_INSTALL_DIR%\bin"
