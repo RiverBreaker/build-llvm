@@ -1,0 +1,125 @@
+#!/bin/bash
+set -euo pipefail
+build_dir=""
+build_arch=""
+build_type=""
+build_project=""
+install_dir=""
+src_dir=""
+base_build_cmd=""
+other_build_cmd=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --build-dir=*)
+            build_dir="${1#*=}"
+            shift
+            ;;
+        --build-arch=*)
+            build_arch="${1#*=}"
+            shift
+            ;;
+        --build-type=*)
+            build_type="${1#*=}"
+            shift
+            ;;
+        --build-project=*)
+            build_project="${1#*=}"
+            shift
+            ;;
+		--install-dir=*)
+			install_dir="${1#*=}"
+			shift
+			;;
+		--src-dir=*)
+			src_dir="${1#*=}"
+			shift
+			;;
+        *)
+            echo "未知选项: $1"
+            exit 1
+            ;;
+    esac
+done
+
+if [[ -z "$build_dir" || -z "$build_arch" || -z "$build_type" || -z "$build_project" || -z "$install_dir" || -z "$src_dir" ]]; then
+    echo "[ERROR] 缺少必要参数,请检查 --build-dir --build-arch --build-type --build-project --install-dir --src-dir"
+    exit 1
+fi
+if [[ "$(uname -s)" == MINGW* || "$(uname -s)" == MSYS* ]]; then
+    build_dir=$(cygpath -w "$build_dir")
+    install_dir=$(cygpath -w "$install_dir")
+    src_dir=$(cygpath -w "$src_dir")
+else
+    # Linux use realpath
+    build_dir=$(realpath -m "$build_dir")
+    install_dir=$(realpath -m "$install_dir")
+    src_dir=$(realpath -m "$src_dir")
+fi
+
+if [ ! -d "${install_dir}" ]; then
+    mkdir -p "${install_dir}"
+fi
+
+if [ -d "${build_dir}" ]; then
+    rm -rf "${build_dir}"
+fi
+mkdir -p "${build_dir}"
+
+cmake_args=()
+if [[ "${build_project}" == "base" ]]; then
+	will_build="llvm"
+	cmake_args+=(
+        "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra"
+        "-DLLVM_ENABLE_RUNTIMES=compiler-rt;openmp"
+        "-DLLVM_TARGETS_TO_BUILD=${build_arch}"
+        "-DCOMPILER_RT_BUILD_LIBFUZZER=OFF"
+        "-DCOMPILER_RT_BUILD_ORC=OFF"
+        "-DPACKAGE_VENDOR=Build By github@Riverbreaker"
+        "-DCLANG_VENDOR=Build By github@Riverbreaker"
+    )
+else
+	will_build="${build_project}"
+	cmake_args+=(
+        "-DLLVM_DIR=${install_dir}/lib/cmake/llvm"
+        "-DClang_DIR=${install_dir}/lib/cmake/clang"
+    )
+fi
+if [[ "${build_project}" == "flang" ]]; then
+	cmake_args+=("-DFLANG_VENDOR=Build By github@Riverbreaker")
+fi
+
+cmake_args+=(
+    "-DCMAKE_BUILD_TYPE=${build_type}"
+    "-DLLVM_ENABLE_RTTI=OFF"
+    "-DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON"
+    "-DLLVM_PARALLEL_LINK_JOBS=4"
+    "-DLLVM_INCLUDE_TESTS=OFF"
+    "-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded"
+    "-DCMAKE_INSTALL_PREFIX=${install_dir}"
+    "-DCMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO=/INCREMENTAL:NO"
+    "-DCMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO=/INCREMENTAL:NO"
+    "-DCMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO=/INCREMENTAL:NO"
+    "-DCMAKE_EXE_LINKER_FLAGS=/MANIFEST:NO"
+    "-DCMAKE_MODULE_LINKER_FLAGS=/MANIFEST:NO"
+    "-DCMAKE_SHARED_LINKER_FLAGS=/MANIFEST:NO"
+)
+
+cd "${src_dir}"
+echo "::group::CMake 配置"
+cmake -S "${will_build}" \
+	-B "${build_dir}" \
+	-G Ninja \
+	"${cmake_args[@]}" || { echo "::error::CMake 生成失败"; exit 1; }
+echo "::endgroup::"
+
+# ====== 3. 编译 ======
+JOBS=$(nproc 2>/dev/null || echo 2)
+echo "::group::Ninja 编译 (使用 ${JOBS} 个并发任务)"
+ninja -C "${build_dir}" -j"${JOBS}" || { echo "::error::编译失败"; exit 1; }
+echo "::endgroup::"
+# ====== 4. 安装 ======
+echo "::group::Ninja 安装"
+ninja -C "${build_dir}" install && echo [INFO] 安装完成，目录：${install_dir} || { echo "::error::安装失败"; exit 1; }
+echo "::endgroup::"
+
