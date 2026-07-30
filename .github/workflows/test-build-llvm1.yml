@@ -235,29 +235,25 @@ jobs:
               exit /b 1
           )
 
-          rem ====== 2. 生成构建树 ======
+          rem ====== 2. 生成mlir构建树 ======
           call "%VS_ROOT_DIR%\VC\Auxiliary\Build\vcvarsall.bat" amd64 || (echo vcvarsall failed && exit /b 1)
-          cmake -S llvm ^
+          sccache --start-server 2>nul
+          sccache --zero-stats 2>nul
+          cmake -S mlir ^
                 -B "%LLVM_BUILD_DIR%" ^
                 -G Ninja ^
                 -DCMAKE_BUILD_TYPE=%LLVM_CONFIG% ^
-                -DLLVM_ENABLE_PROJECTS="mlir;flang" ^
-                -DLLVM_TARGETS_TO_BUILD=%LLVM_ARCH% ^
                 -DLLVM_ENABLE_RTTI=OFF ^
                 -DLLVM_DIR="%LLVM_INSTALL_DIR%\lib\cmake\llvm" ^
                 -DClang_DIR="%LLVM_INSTALL_DIR%\lib\cmake\clang" ^
                 -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON ^
-                -DCOMPILER_RT_BUILD_LIBFUZZER=OFF ^
                 -DLLVM_PARALLEL_COMPILE_JOBS=2 ^
                 -DLLVM_PARALLEL_LINK_JOBS=2 ^
-                -DCOMPILER_RT_BUILD_ORC=OFF ^
                 -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
                 -DCMAKE_CXX_COMPILER_LAUNCHER=sccache ^
                 -DCMAKE_C_FLAGS_RELWITHDEBINFO="/Z7 /O2 /Ob1 /DNDEBUG" ^
                 -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="/Z7 /O2 /Ob1 /DNDEBUG" ^
                 -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded ^
-                -DPACKAGE_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
-                -DCLANG_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
                 -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%" ^
                 -DCMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO="/INCREMENTAL:NO" ^
                 -DCMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO="/INCREMENTAL:NO" ^
@@ -277,11 +273,57 @@ jobs:
               exit /b 1
           )
 
-          rem ====== 5. 安装 ======
+          rem ====== 4. 安装 ======
           ninja -C "%LLVM_BUILD_DIR%" install
           echo [INFO] 安装完成，目录：%LLVM_INSTALL_DIR%
 
-          rem ====== 5.5 体积优化（可选） ======
+          echo [INFO] 开始清理构建目录
+          powershell -command "Remove-Item -Recurse -Force '%LLVM_BUILD_DIR%'" || (echo [ERROR] 构建清理失败 && exit /b 1)
+          echo [INFO] 清理完成
+          if not exist "%LLVM_BUILD_DIR%" mkdir "%LLVM_BUILD_DIR%"
+
+          rem ====== 5. 生成flang构建树 ======
+          cmake -S flang ^
+                -B "%LLVM_BUILD_DIR%" ^
+                -G Ninja ^
+                -DCMAKE_BUILD_TYPE=%LLVM_CONFIG% ^
+                -DLLVM_ENABLE_RTTI=OFF ^
+                -DLLVM_DIR="%LLVM_INSTALL_DIR%\lib\cmake\llvm" ^
+                -DClang_DIR="%LLVM_INSTALL_DIR%\lib\cmake\clang" ^
+                -DMLIR_DIR="%LLVM_INSTALL_DIR%\lib\cmake\mlir" ^
+                -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON ^
+                -DLLVM_PARALLEL_COMPILE_JOBS=2 ^
+                -DLLVM_PARALLEL_LINK_JOBS=2 ^
+                -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
+                -DCMAKE_CXX_COMPILER_LAUNCHER=sccache ^
+                -DCMAKE_C_FLAGS_RELWITHDEBINFO="/Z7 /O2 /Ob1 /DNDEBUG" ^
+                -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="/Z7 /O2 /Ob1 /DNDEBUG" ^
+                -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded ^
+                -DFLANG_VENDOR="Build By github@Riverbreaker (Github Actions CI/CD Build)" ^
+                -DCMAKE_INSTALL_PREFIX="%LLVM_INSTALL_DIR%" ^
+                -DCMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO="/INCREMENTAL:NO" ^
+                -DCMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO="/INCREMENTAL:NO" ^
+                -DCMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO="/INCREMENTAL:NO" ^
+                -DCMAKE_EXE_LINKER_FLAGS="/MANIFEST:NO" ^
+                -DCMAKE_MODULE_LINKER_FLAGS="/MANIFEST:NO" ^
+                -DCMAKE_SHARED_LINKER_FLAGS="/MANIFEST:NO"
+          if errorlevel 1 (
+              echo [ERROR] CMake 生成失败
+              exit /b 1
+          )
+
+          rem ====== 6. 编译 ======
+          ninja -C "%LLVM_BUILD_DIR%" -j8
+          if errorlevel 1 (
+              echo [ERROR] 编译失败
+              exit /b 1
+          )
+
+          rem ====== 7. 安装 ======
+          ninja -C "%LLVM_BUILD_DIR%" install
+          echo [INFO] 安装完成，目录：%LLVM_INSTALL_DIR%
+
+          rem ====== 8 体积优化（可选） ======
           echo [INFO] Cleaning up unnecessary files to reduce package size...
           rem 如果不需要调试符号，删除所有 .pdb 文件
           if "%LLVM_CONFIG%"=="Release" (
@@ -300,9 +342,10 @@ jobs:
           echo [INFO] Copy License file to llvm install dir.
           copy /y "%LLVM_CODE_BASE%\LICENSE.TXT" "%LLVM_LICENSE_DIR%"
 
-          rem ====== 6. 验证 ======
+          rem ====== 9. 验证 ======
           echo [INFO] 验证安装结果
           "%LLVM_INSTALL_DIR%\bin\clang.exe" --version
+          "%LLVM_INSTALL_DIR%\bin\flang.exe" --version
           echo [INFO] 运行测试
           echo #include ^<stdio.h^> > test.c
           echo int main() { printf("Hello, World!\n"); return 0; } >> test.c
