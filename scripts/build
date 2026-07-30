@@ -86,7 +86,10 @@ else
     )
 fi
 if [[ "${build_project}" == "flang" ]]; then
-	cmake_args+=("-DFLANG_VENDOR=Build By github@Riverbreaker")
+	cmake_args+=(
+		"-DFLANG_VENDOR=Build By github@Riverbreaker"
+		"-DMLIR_DIR=${install_dir}/lib/cmake/mlir"
+	)
 fi
 
 cmake_args+=(
@@ -123,3 +126,19 @@ echo "::group::Ninja 安装"
 ninja -C "${build_dir}" install && echo [INFO] 安装完成，目录：${install_dir} || { echo "::error::安装失败"; exit 1; }
 echo "::endgroup::"
 
+# ====== 5.5 体积优化（可选） ======
+echo "[INFO] Cleaning up unnecessary files to reduce package size..."
+
+if [[ "${build_type}" == "Release" ]]; then
+	find "${install_dir}" -type f -name "*.pdb" -delete 2>/dev/null || true
+	echo "[INFO] PDB files removed for Release build."
+else
+	echo "[INFO] Keeping PDB files for RelWithDebInfo build."
+fi
+
+find "${install_dir}/bin" -type f -name "*Tests.exe" -delete 2>/dev/null || true
+echo "[INFO] Cleanup complete."
+
+echo "[INFO] 开始清理构建目录"
+rm -rf "${LLVM_BUILD_DIR}" || { echo "[ERROR] 构建清理失败"; exit 1; }
+echo "[INFO] 清理完成"

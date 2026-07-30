@@ -1,0 +1,434 @@
+name: Build LLVM for Windows(MSVC2022)
+
+on:
+  workflow_dispatch:
+    inputs:
+      llvm-version:
+        description: 'LLVM version'
+        required: true
+        default: '20.1.0'
+
+jobs:
+  build-llvm-base:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: bash
+
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        config: [Release, RelWithDebInfo]
+        arch: [X86]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Setup MSVC
+        run: |
+          source ${GITHUB_WORKSPACE}/scripts/setup_msvc.sh
+
+      - name: Enable long paths
+        run: |
+          git config --system core.longpaths true
+          git config --global core.autocrlf false
+          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f || true
+
+      - name: Get LLVM source code
+        run: |
+          git clone --depth 1 --branch llvmorg-${{ inputs.llvm-version }} https://github.com/llvm/llvm-project.git llvm-project
+
+      - name: Build llvm-base for windows
+        env:
+          LLVM_CONFIG: ${{ matrix.config }}
+          LLVM_ARCH: ${{ matrix.arch }}
+        run: |
+          LLVM_CODE_BASE="${GITHUB_WORKSPACE}/llvm-project"
+          LLVM_BUILD_DIR="${GITHUB_WORKSPACE}/build/${LLVM_CONFIG}"
+          LLVM_INSTALL_ROOT="C:/llvm"
+          LLVM_INSTALL_DIR="${LLVM_INSTALL_ROOT}/install/${LLVM_CONFIG}"
+
+          # ====== 创建目录 ======
+          # Bash 的 mkdir -p 可以直接创建多级目录，且目录已存在时不会报错，完美替代 for 循环
+          mkdir -p "${LLVM_CODE_BASE}" "${LLVM_BUILD_DIR}" "${LLVM_INSTALL_ROOT}" "${LLVM_INSTALL_DIR}"
+
+          # ======= 构建 =========
+          python build.py \
+            --build-dir=${LLVM_BUILD_DIR} \
+            --build-arch=${LLVM_ARCH} \
+            --build-type=${LLVM_CONFIG} \
+            --build-project=base \
+            --install-dir=${LLVM_INSTALL_DIR} \
+            --src-dir=${LLVM_CODE_BASE}
+
+          # ====== 6. 验证 ======
+          echo "[INFO] 验证安装结果"
+          "${LLVM_INSTALL_DIR}/bin/clang.exe" --version
+
+          echo "[INFO] 运行测试"
+          # 使用 Here-Doc (EOF) 生成测试代码，比多次 echo 追加更清晰，且无需处理尖括号转义
+          cat << 'EOF' > ${GITHUB_WORKSPACE}/test.c
+          #include <stdio.h>
+          int main() { printf("Hello, World!\n"); return 0; }
+          EOF
+
+          # 编译并运行
+          "${LLVM_INSTALL_DIR}/bin/clang.exe" ${GITHUB_WORKSPACE}/test.c -o ${GITHUB_WORKSPACE}/test.exe
+          ./${GITHUB_WORKSPACE}/test.exe
+
+      - name: Upload-to-artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: llvm-base-${{ matrix.arch }}-${{ matrix.config }}-base
+          path: "C:/llvm/install/${{ matrix.config }}"
+
+  build-llvm-mlir&flang:
+    runs-on: windows-2022
+    needs: build-llvm-base
+    defaults:
+      run:
+        shell: bash
+
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        config: [Release, RelWithDebInfo]
+        arch: [X86]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: llvm-base-${{ matrix.arch }}-${{ matrix.config }}-base
+          path: "C:/llvm/install/${{ matrix.config }}"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Setup MSVC
+        run: |
+          source ${GITHUB_WORKSPACE}/scripts/setup_msvc.sh
+
+      - name: Enable long paths
+        run: |
+          git config --system core.longpaths true
+          git config --global core.autocrlf false
+          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f || true
+
+      - name: Get LLVM source code
+        run: |
+          git clone --depth 1 --branch llvmorg-${{ inputs.llvm-version }} https://github.com/llvm/llvm-project.git llvm-project
+
+      - name: Build llvm-base for windows
+        env:
+          LLVM_CONFIG: ${{ matrix.config }}
+          LLVM_ARCH: ${{ matrix.arch }}
+        run: |
+          LLVM_CODE_BASE="${GITHUB_WORKSPACE}/llvm-project"
+          LLVM_BUILD_DIR="${GITHUB_WORKSPACE}/build/${LLVM_CONFIG}"
+          LLVM_INSTALL_ROOT="C:/llvm"
+          LLVM_INSTALL_DIR="${LLVM_INSTALL_ROOT}/install/${LLVM_CONFIG}"
+
+          # ====== 创建目录 ======
+          mkdir -p "${LLVM_CODE_BASE}" "${LLVM_BUILD_DIR}" "${LLVM_INSTALL_ROOT}" "${LLVM_INSTALL_DIR}"
+
+          # ====== 构建 ========
+          python build.py \
+            --build-dir="${LLVM_BUILD_DIR}" \
+            --build-arch="${LLVM_ARCH}" \
+            --build-type="${LLVM_CONFIG}" \
+            --build-project=mlir \
+            --install-dir="${LLVM_INSTALL_DIR}" \
+            --src-dir="${LLVM_CODE_BASE}"
+
+          python build.py \
+            --build-dir="${LLVM_BUILD_DIR}" \
+            --build-arch="${LLVM_ARCH}" \
+            --build-type="${LLVM_CONFIG}" \
+            --build-project=flang \
+            --install-dir="${LLVM_INSTALL_DIR}" \
+            --src-dir="${LLVM_CODE_BASE}"
+
+          # ====== 验证 ======
+          "${LLVM_INSTALL_DIR}/bin/clang.exe" --version
+          "${LLVM_INSTALL_DIR}/bin/flang.exe" --version
+
+      - name: Upload-to-artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: llvm-base-${{ matrix.arch }}-${{ matrix.config }}-mlir-flang
+          path: "C:/llvm/install/${{ matrix.config }}"
+
+  build-llvm-lldb&lld:
+    runs-on: windows-2022
+    needs: build-llvm-base
+    defaults:
+      run:
+        shell: bash
+
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        config: [Release, RelWithDebInfo]
+        arch: [X86]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: llvm-base-${{ matrix.arch }}-${{ matrix.config }}-base
+          path: "C:/llvm/install/${{ matrix.config }}"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Setup MSVC
+        run: |
+          source ${GITHUB_WORKSPACE}/scripts/setup_msvc.sh
+
+      - name: Enable long paths
+        run: |
+          git config --system core.longpaths true
+          git config --global core.autocrlf false
+          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f || true
+
+      - name: Get LLVM source code
+        run: |
+          git clone --depth 1 --branch llvmorg-${{ inputs.llvm-version }} https://github.com/llvm/llvm-project.git llvm-project
+
+      - name: Build llvm-base for windows
+        env:
+          LLVM_CONFIG: ${{ matrix.config }}
+          LLVM_ARCH: ${{ matrix.arch }}
+        run: |
+          LLVM_CODE_BASE="${GITHUB_WORKSPACE}/llvm-project"
+          LLVM_BUILD_DIR="${GITHUB_WORKSPACE}/build/${LLVM_CONFIG}"
+          LLVM_INSTALL_ROOT="C:/llvm"
+          LLVM_INSTALL_DIR="${LLVM_INSTALL_ROOT}/install/${LLVM_CONFIG}"
+          LLVM_LICENSE_DIR="${LLVM_INSTALL_DIR}/LICENSE"
+
+          # ====== 创建目录 ======
+          mkdir -p "${LLVM_CODE_BASE}" "${LLVM_BUILD_DIR}" "${LLVM_INSTALL_ROOT}" \
+                   "${LLVM_INSTALL_DIR}" "${LLVM_LICENSE_DIR}"
+
+          # ====== 构建 =========
+          python build.py \
+            --build-dir="${LLVM_BUILD_DIR}" \
+            --build-arch="${LLVM_ARCH}" \
+            --build-type="${LLVM_CONFIG}" \
+            --build-project=lld \
+            --install-dir="${LLVM_INSTALL_DIR}" \
+            --src-dir="${LLVM_CODE_BASE}"
+
+          python build.py \
+            --build-dir="${LLVM_BUILD_DIR}" \
+            --build-arch="${LLVM_ARCH}" \
+            --build-type="${LLVM_CONFIG}" \
+            --build-project=lldb \
+            --install-dir="${LLVM_INSTALL_DIR}" \
+            --src-dir="${LLVM_CODE_BASE}"
+
+          # ====== 复制依赖和授权文件 ======
+          echo "[INFO] Copy Python311.dll to LLVM bin directory"
+          cp -f "${pythonLocation}/python311.dll" "${LLVM_INSTALL_DIR}/bin/"
+
+          echo "[INFO] Copy License file to llvm install dir."
+          cp -f "${LLVM_CODE_BASE}/LICENSE.TXT" "${LLVM_LICENSE_DIR}/"
+
+          # ====== 验证  ======
+          echo "[INFO] 验证安装结果"
+          "${LLVM_INSTALL_DIR}/bin/clang.exe" --version
+          "${LLVM_INSTALL_DIR}/bin/flang.exe" --version
+          "${LLVM_INSTALL_DIR}/bin/lld.exe" --version
+
+      - name: Upload-to-artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: llvm-base-${{ matrix.arch }}-${{ matrix.config }}-lld-lldb
+          path: "C:/llvm/install/${{ matrix.config }}"
+
+  package-and-release:
+    runs-on: windows-2022
+    needs: [build-llvm-mlir&flang,build-llvm-lldb&lld]
+    defaults:
+      run:
+        shell: bash
+
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        config: [Release, RelWithDebInfo]
+        arch: [X86]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: llvm-base-${{ matrix.arch }}-${{ matrix.config }}-mlir-flang
+          path: "C:/llvm/install/${{ matrix.config }}"
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: llvm-base-${{ matrix.arch }}-${{ matrix.config }}-lld-lldb
+          path: "C:/llvm/install/${{ matrix.config }}"
+
+      - name: Package
+        env:
+          LLVM_CONFIG: ${{ matrix.config }}
+          LLVM_ARCH: ${{ matrix.arch }}
+        run: |
+          LLVM_INSTALL_ROOT="C:/llvm"
+          LLVM_INSTALL_DIR="${LLVM_INSTALL_ROOT}/install/${LLVM_CONFIG}"
+          PACKAGE_DIR="${LLVM_INSTALL_ROOT}/packages"
+          mkdir -p "${PACKAGE_DIR}"
+          # ====== 打包 ======
+          cd "${LLVM_INSTALL_DIR}"
+
+          ZIP_FILE="${PACKAGE_DIR}/llvm-${{ inputs.llvm-version }}-win-${LLVM_ARCH}-${LLVM_CONFIG}-MSVC-2022.7z"
+
+          rm -f "${ZIP_FILE}"
+
+          echo "[INFO] 开始打包到：${ZIP_FILE}"
+          echo "[INFO] 开始生成单文件 7z 压缩包"
+
+          7z a -t7z "${ZIP_FILE}" . -mx=7 -mmt=on || {
+            echo "[ERROR] 生成单文件压缩包失败"
+            exit 1
+          }
+
+          echo "[INFO] 单文件压缩包生成完成"
+
+      - name: Package build to output
+        env:
+          CONFIG: ${{ matrix.config }}
+          ZIP_FILE: "C:/llvm/packages/llvm-${{ inputs.llvm-version }}-win-${{ matrix.arch }}-${{ matrix.config }}-MSVC-2022.7z"
+          LLVM_INSTALL_DIR: "C:/llvm/install/${{ matrix.config }}"
+          LLVM_ARCH: ${{ matrix.arch }}
+        run: |
+          FILE_PATH="$ZIP_FILE"
+          NEW_FILE_PATH="${RUNNER_TEMP}/packages"
+          LIMIT_SIZE=2044723200 # 1950 MB in bytes (1950 * 1024 * 1024)
+
+          # 创建目标目录
+          mkdir -p "$NEW_FILE_PATH"
+
+          # 检查文件是否存在并获取大小
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "::error::找不到压缩文件: $FILE_PATH"
+            exit 1
+          fi
+
+          # 获取文件大小 (字节)
+          FILE_SIZE=$(wc -c < "$FILE_PATH" | tr -d ' ')
+          FILE_SIZE_MB=$(echo "scale=2; $FILE_SIZE / 1048576" | bc)
+
+          if [ "$FILE_SIZE" -le "$LIMIT_SIZE" ]; then
+            echo "[INFO] 压缩包大小正常 (${FILE_SIZE_MB} MB)，复制到包目录"
+            cp -f "$FILE_PATH" "$NEW_FILE_PATH/"
+            echo "[INFO] 复制完成"
+          else
+            echo "[INFO] 压缩包过大 (${FILE_SIZE_MB} MB)，开始分卷压缩到: $NEW_FILE_PATH"
+
+            OUTPUT_BASE="llvm-${{ inputs.llvm-version }}-win-${LLVM_ARCH}-${CONFIG}-MSVC-2022"
+            OUTPUT_PATH="${NEW_FILE_PATH}/${OUTPUT_BASE}.7z"
+
+            echo "[INFO] 运行命令: 7z a -t7z ${OUTPUT_PATH} ${LLVM_INSTALL_DIR}/* -v1950m -mx=6 -mmt=on"
+
+            # 执行 7z 分卷压缩
+            if 7z a -t7z "$OUTPUT_PATH" "${LLVM_INSTALL_DIR}/" -v1950m -mx=6 -mmt=on; then
+              echo "[INFO] 分卷压缩成功, 输出前缀: $OUTPUT_PATH"
+              # 删除原始单文件压缩包
+              rm -f "$FILE_PATH" || echo "[WARN] 删除原始压缩包失败"
+              echo "[INFO] 已删除原始单文件压缩包: $FILE_PATH"
+            else
+              echo "::error::分卷压缩失败，保留原始单文件压缩包: $FILE_PATH"
+              exit 1
+            fi
+          fi
+
+      - name: Create Tag if not exists
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+        env:
+          REPO: ${{ github.repository }}
+          TAG: llvm-${{ inputs.llvm-version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 1. 检查本地是否已存在 TAG
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Local tag $TAG already exists, skip creation."
+          else
+            # 2. 检查远程是否已存在 TAG
+            if git ls-remote --tags origin "$TAG" | grep -q "$TAG"; then
+              echo "Remote tag $TAG already exists, skip creation."
+            else
+              # 3. 本地＆远程都不存在时，创建并推送
+              git tag "$TAG"
+              git push origin "$TAG"
+              echo "Tag $TAG created and pushed."
+            fi
+          fi
+
+      - name: Ensure Release exists or create
+        id: ensure_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="llvm-${{ inputs.llvm-version }}"
+          # 查看是否已有该 tag 对应的 Release
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "found=existing" >> $GITHUB_OUTPUT
+          else
+            echo "found=new" >> $GITHUB_OUTPUT
+            gh release create "$TAG" \
+              --title "$TAG Auto Builds" \
+              --notes "Automated build of $TAG" \
+              --draft=false \
+              --prerelease=false
+          fi
+
+      - name: Upload build artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIG: ${{ matrix.config }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          TAG="llvm-${{ inputs.llvm-version }}"
+          DST_DIR="${RUNNER_TEMP}/packages"
+          BASE="llvm-${{ inputs.llvm-version }}-win-${ARCH}-${CONFIG}-MSVC-2022"
+
+          # 开启 nullglob，防止找不到文件时返回字面量字符串
+          shopt -s nullglob
+
+          # 查找分卷文件 (例如: *.7z.001, *.7z.002)
+          PARTS=("$DST_DIR"/"$BASE".7z.*)
+
+          if [ ${#PARTS[@]} -gt 0 ]; then
+            echo "[INFO] 发现分卷压缩包，开始逐个上传..."
+            for file in "${PARTS[@]}"; do
+              # 确保文件不为空
+              if [ -s "$file" ]; then
+                echo "[INFO] 上传: $file"
+                gh release upload "$TAG" "$file" --clobber
+              fi
+            done
+          elif [ -f "$DST_DIR/$BASE.7z" ] && [ -s "$DST_DIR/$BASE.7z" ]; then
+            echo "[INFO] 发现单文件压缩包，开始上传..."
+            gh release upload "$TAG" "$DST_DIR/$BASE.7z" --clobber
+          else
+            echo "::warning::未找到任何有效的压缩包文件用于上传"
+          fi
