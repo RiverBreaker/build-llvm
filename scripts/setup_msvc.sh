@@ -7,7 +7,6 @@ export MSYS2_ARG_CONV_EXCL="*"
 # 1. 获取 VS 路径
 VSWHERE_EXE="C:/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
 VS_PATH=$("$VSWHERE_EXE" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | tr -d '\r\n')
-VCVARS_BAT="${VS_PATH}/VC/Auxiliary/Build/vcvarsall.bat"
 
 echo "找到 Visual Studio 路径: ${VS_PATH}"
 
