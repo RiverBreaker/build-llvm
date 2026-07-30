@@ -260,7 +260,7 @@ jobs:
 
   package-and-release:
     runs-on: windows-2022
-    needs: [build-llvm-mlir&flang,build-llvm-lldb&lld]
+    needs: [build-llvm-mlir-flang,build-llvm-lldb-lld]
     defaults:
       run:
         shell: bash
