@@ -31,10 +31,10 @@ pwsh -NoProfile -NonInteractive -Command "
     }
 " | grep -E '^(PATH|INCLUDE|LIB|LIBPATH|VCINSTALLDIR|WindowsSdkDir|WindowsSDKVersion|VCToolsInstallDir)=' | sed 's/\r$//' >> "$GITHUB_ENV"
 
-# 3. 检查是否成功写入
-echo "📋 已写入 GITHUB_ENV 的内容（前几行）："
-head -n 5 "$GITHUB_ENV" || echo "⚠️ 警告：GITHUB_ENV 为空"
+# # 3. 检查是否成功写入
+# echo "📋 已写入 GITHUB_ENV 的内容（前几行）："
+# head -n 5 "$GITHUB_ENV" || echo "⚠️ 警告：GITHUB_ENV 为空"
 
 echo "✅ MSVC 环境注入完成"
 # 验证 cl.exe（此时 PATH 应已更新）
-which cl.exe || echo "⚠️ 未找到 cl.exe（请检查上方环境变量）"
+# which cl.exe || echo "⚠️ 未找到 cl.exe（请检查上方环境变量）"

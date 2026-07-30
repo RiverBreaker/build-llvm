@@ -53,7 +53,7 @@ jobs:
           mkdir -p "${LLVM_CODE_BASE}" "${LLVM_BUILD_DIR}" "${LLVM_INSTALL_ROOT}" "${LLVM_INSTALL_DIR}"
 
           # ======= 构建 =========
-          python build.py \
+          python ${GITHUB_WORKSPACE}/scripts/build.py \
             --build-dir=${LLVM_BUILD_DIR} \
             --build-arch=${LLVM_ARCH} \
             --build-type=${LLVM_CONFIG} \
@@ -131,7 +131,7 @@ jobs:
           mkdir -p "${LLVM_CODE_BASE}" "${LLVM_BUILD_DIR}" "${LLVM_INSTALL_ROOT}" "${LLVM_INSTALL_DIR}"
 
           # ====== 构建 ========
-          python build.py \
+          python ${GITHUB_WORKSPACE}/scripts/build.py \
             --build-dir="${LLVM_BUILD_DIR}" \
             --build-arch="${LLVM_ARCH}" \
             --build-type="${LLVM_CONFIG}" \
@@ -139,7 +139,7 @@ jobs:
             --install-dir="${LLVM_INSTALL_DIR}" \
             --src-dir="${LLVM_CODE_BASE}"
 
-          python build.py \
+          python ${GITHUB_WORKSPACE}/scripts/build.py \
             --build-dir="${LLVM_BUILD_DIR}" \
             --build-arch="${LLVM_ARCH}" \
             --build-type="${LLVM_CONFIG}" \
@@ -208,7 +208,7 @@ jobs:
                    "${LLVM_INSTALL_DIR}" "${LLVM_LICENSE_DIR}"
 
           # ====== 构建 =========
-          python build.py \
+          python ${GITHUB_WORKSPACE}/scripts/build.py \
             --build-dir="${LLVM_BUILD_DIR}" \
             --build-arch="${LLVM_ARCH}" \
             --build-type="${LLVM_CONFIG}" \
@@ -216,7 +216,7 @@ jobs:
             --install-dir="${LLVM_INSTALL_DIR}" \
             --src-dir="${LLVM_CODE_BASE}"
 
-          python build.py \
+          python ${GITHUB_WORKSPACE}/scripts/build.py \
             --build-dir="${LLVM_BUILD_DIR}" \
             --build-arch="${LLVM_ARCH}" \
             --build-type="${LLVM_CONFIG}" \
