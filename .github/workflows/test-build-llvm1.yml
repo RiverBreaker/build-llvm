@@ -38,19 +38,9 @@ jobs:
           Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
             -Name "LongPathsEnabled" -Value 1
 
-      - name: Cache LLVM Source code
-        id: cache-llvm-source-code
-        uses: actions/cache@v6
-        with:
-          key: llvm-src-${{ inputs.llvm-version }}-windows
-          path: ${{ github.workspace }}/llvm-project
-
       - name: Get LLVM source code
-        if: steps.cache-llvm-source-code.outputs.cache-hit != 'true'
         run: |
-          git clone https://github.com/llvm/llvm-project.git
-          cd llvm-project
-          git checkout llvmorg-${{ inputs.llvm-version }} -b llvm-${{ inputs.llvm-version }}
+          git clone --depth 1 --branch llvmorg-${{ inputs.llvm-version }} https://github.com/llvm/llvm-project.git llvm-project
 
       - name: Build llvm-base for windows
         shell: cmd
@@ -194,19 +184,9 @@ jobs:
           Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
             -Name "LongPathsEnabled" -Value 1
 
-      - name: Cache LLVM Source code
-        id: cache-llvm-source-code
-        uses: actions/cache@v6
-        with:
-          key: llvm-src-${{ inputs.llvm-version }}-windows
-          path: ${{ github.workspace }}/llvm-project
-
       - name: Get LLVM source code
-        if: steps.cache-llvm-source-code.outputs.cache-hit != 'true'
         run: |
-          git clone https://github.com/llvm/llvm-project.git
-          cd llvm-project
-          git checkout llvmorg-${{ inputs.llvm-version }} -b llvm-${{ inputs.llvm-version }}
+          git clone --depth 1 --branch llvmorg-${{ inputs.llvm-version }} https://github.com/llvm/llvm-project.git llvm-project
 
       - name: Build llvm-extend for windows
         shell: cmd
