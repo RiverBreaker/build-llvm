@@ -29,15 +29,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Setup MSVC
+      - name: Setup MSVC and Enable long paths
         run: |
           source ${GITHUB_WORKSPACE}/scripts/setup_msvc.sh
-
-      - name: Enable long paths
-        run: |
-          git config --system core.longpaths true
-          git config --global core.autocrlf false
-          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f || true
+          source ${GITHUB_WORKSPACE}/scripts/long_path.sh
 
       - name: Get LLVM source code
         run: |
@@ -113,15 +108,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Setup MSVC
+      - name: Setup MSVC and Enable long paths
         run: |
           source ${GITHUB_WORKSPACE}/scripts/setup_msvc.sh
-
-      - name: Enable long paths
-        run: |
-          git config --system core.longpaths true
-          git config --global core.autocrlf false
-          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f || true
+          source ${GITHUB_WORKSPACE}/scripts/long_path.sh
 
       - name: Get LLVM source code
         run: |
@@ -193,15 +183,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Setup MSVC
+      - name: Setup MSVC and Enable long paths
         run: |
           source ${GITHUB_WORKSPACE}/scripts/setup_msvc.sh
-
-      - name: Enable long paths
-        run: |
-          git config --system core.longpaths true
-          git config --global core.autocrlf false
-          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f || true
+          source ${GITHUB_WORKSPACE}/scripts/long_path.sh
 
       - name: Get LLVM source code
         run: |
