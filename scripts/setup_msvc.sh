@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e  # 保留，但增加错误捕获
+# set -e  # 保留，但增加错误捕获
 
 # 禁止路径转换
 export MSYS2_ARG_CONV_EXCL="*"
@@ -20,8 +20,10 @@ fi
 
 # 3. 执行 vcvarsall.bat，捕获输出和错误
 echo "⏳ 正在执行 vcvarsall.bat ..."
+set +e
 CMD_OUTPUT=$(cmd.exe /c "call \"${VCVARS_BAT}\" x64 && set" 2>&1)
 CMD_EXIT=$?
+set -e
 
 echo "cmd.exe 退出码: $CMD_EXIT"
 if [ $CMD_EXIT -ne 0 ]; then
