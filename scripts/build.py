@@ -28,6 +28,7 @@ def main():
     # 确定 build.sh 的位置（假设与本脚本同目录）
     script_dir = Path(__file__).parent.resolve()
     build_script = script_dir / "build"
+    bash_exe = r"C:/Program Files/Git/bin/bash.exe"
 
     if not build_script.is_file():
         print(f"[ERROR] 找不到构建脚本: {build_script}", file=sys.stderr)
@@ -35,7 +36,7 @@ def main():
 
     # 构建参数列表，使用 --key=value 格式
     cmd = [
-        "bash",
+        bash_exe,
         str(build_script),
         f"--build-dir={args.build_dir}",
         f"--build-arch={args.build_arch}",
