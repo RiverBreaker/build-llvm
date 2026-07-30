@@ -1,9 +1,10 @@
+export MSYS2_ARG_CONV_EXCL="*"
 # 1. 使用正斜杠定义 vswhere.exe 路径（避免反斜杠转义）
 VSWHERE_EXE="C:/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
 
 # 2. 直接调用 vswhere，无需通过 cmd.exe //c
 #    - 用单引号包裹 '*' 防止被 Bash 展开
-VS_PATH=$("$VSWHERE_EXE" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | tr -d '\r\n')
+VS_PATH=$("$VSWHERE_EXE" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | tr -d '\r\n' | sed 's/\\/\//g')
 
 # 3. vcvarsall.bat 路径同样使用正斜杠（Windows CMD 也接受正斜杠）
 VCVARS_BAT="${VS_PATH}/VC/Auxiliary/Build/vcvarsall.bat"
