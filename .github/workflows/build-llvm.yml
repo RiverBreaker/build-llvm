@@ -87,7 +87,7 @@ jobs:
           name: llvm-base-${{ matrix.arch }}-${{ matrix.config }}-base
           path: "C:/llvm/install/${{ matrix.config }}"
 
-  build-llvm-mlir&flang:
+  build-llvm-mlir-flang:
     runs-on: windows-2022
     needs: build-llvm-base
     defaults:
@@ -167,7 +167,7 @@ jobs:
           name: llvm-base-${{ matrix.arch }}-${{ matrix.config }}-mlir-flang
           path: "C:/llvm/install/${{ matrix.config }}"
 
-  build-llvm-lldb&lld:
+  build-llvm-lldb-lld:
     runs-on: windows-2022
     needs: build-llvm-base
     defaults:
