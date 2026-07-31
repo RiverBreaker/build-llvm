@@ -140,5 +140,5 @@ find "${install_dir}/bin" -type f -name "*Tests.exe" -delete 2>/dev/null || true
 echo "[INFO] Cleanup complete."
 
 echo "[INFO] 开始清理构建目录"
-rm -rf "${LLVM_BUILD_DIR}" || { echo "[ERROR] 构建清理失败"; exit 1; }
+rm -rf "${build_dir}" || { echo "[ERROR] 构建清理失败"; exit 1; }
 echo "[INFO] 清理完成"
