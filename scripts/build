@@ -61,7 +61,9 @@ if [ ! -d "${install_dir}" ]; then
 fi
 
 if [ -d "${build_dir}" ]; then
-    rm -rf "${build_dir}"
+	# if [ "${build_project}" != "flang" ]; then
+	rm -rf "${build_dir}"
+	# fi
 fi
 mkdir -p "${build_dir}"
 
@@ -147,29 +149,34 @@ if [[ "${build_type}" == "Release" ]]; then
 else
 	echo "[INFO] Keeping PDB files for RelWithDebInfo build."
 fi
-
+# mlir-tblgen 不会被 install 规则安装，手动复制给 flang 用
+if [[ "${build_project}" == "mlir" ]]; then
+    cp -f "${build_dir}/bin/mlir-tblgen.exe" "${install_dir}/bin/"
+fi
 find "${install_dir}/bin" -type f -name "*Tests.exe" -delete 2>/dev/null || true
 echo "::endgroup::[INFO] Cleanup complete."
 
 echo "::group::[INFO] 开始清理构建目录"
+# if [ "${build_project}" != "mlir" ]; then
 rm -rf "${build_dir}" || { echo "[ERROR] 构建清理失败"; exit 1; }
+# fi
 echo "[INFO] 清理完成"
 echo "::endgroup::"
 
-if [[ "${build_type}" == "Release" && "${build_project}" == "flang" ]]; then
-	echo "::group::开始清理mlir的工具和开发库"
-    # mlir 的工具和开发库，工具链用户不需要
-    rm -f "${install_dir}"/bin/mlir-*
-    rm -f "${install_dir}"/bin/tblgen-liblinalg*
-    rm -rf "${install_dir}"/lib/cmake/mlir
-    rm -f "${install_dir}"/lib/libMLIR*.lib
-    rm -f "${install_dir}"/lib/libmlir*.lib
-    rm -rf "${install_dir}"/include/mlir
-    rm -rf "${install_dir}"/include/mlir-c
+# if [[ "${build_type}" == "Release" && "${build_project}" == "flang" ]]; then
+# 	echo "::group::开始清理mlir的工具和开发库"
+#     # mlir 的工具和开发库，工具链用户不需要
+#     rm -f "${install_dir}"/bin/mlir-*
+#     rm -f "${install_dir}"/bin/tblgen-liblinalg*
+#     rm -rf "${install_dir}"/lib/cmake/mlir
+#     rm -f "${install_dir}"/lib/libMLIR*.lib
+#     rm -f "${install_dir}"/lib/libmlir*.lib
+#     rm -rf "${install_dir}"/include/mlir
+#     rm -rf "${install_dir}"/include/mlir-c
 
-    # lldb 对工具链用户也可选（看你要不要留）
-    # rm -f "${install_dir}"/bin/lldb*
+#     # lldb 对工具链用户也可选（看你要不要留）
+#     # rm -f "${install_dir}"/bin/lldb*
 
-    echo "[INFO] Release toolchain: removed MLIR dev files"
-	echo "::endgroup::"
-fi
+#     echo "[INFO] Release toolchain: removed MLIR dev files"
+# 	echo "::endgroup::"
+# fi
