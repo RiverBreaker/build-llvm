@@ -81,8 +81,8 @@ if [[ "${build_project}" == "base" ]]; then
         "-DLLVM_TARGETS_TO_BUILD=${build_arch}"
         "-DCOMPILER_RT_BUILD_LIBFUZZER=OFF"
         "-DCOMPILER_RT_BUILD_ORC=OFF"
-        "-DPACKAGE_VENDOR=Build By github@Riverbreaker"
-        "-DCLANG_VENDOR=github@Riverbreaker"
+        "-DPACKAGE_VENDOR=Build By github@Riverbreaker (https://github.com/RiverBreaker/build-llvm.git)"
+        "-DCLANG_VENDOR=github@Riverbreaker (https://github.com/RiverBreaker/build-llvm.git)"
     )
 else
 	will_build="${build_project}"
@@ -93,8 +93,9 @@ else
 fi
 if [[ "${build_project}" == "flang" ]]; then
 	cmake_args+=(
-		"-DFLANG_VENDOR=github@Riverbreaker"
+		"-DFLANG_VENDOR=github@Riverbreaker (https://github.com/RiverBreaker/build-llvm.git)"
 		"-DMLIR_DIR=${install_dir}/lib/cmake/mlir"
+		"-DMLIR_TABLEGEN_EXE=${install_dir}/bin/mlir-tblgen.exe"
 	)
 fi
 if [[ "${build_type}" == "RelWithDebInfo" ]]; then

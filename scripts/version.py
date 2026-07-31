@@ -72,7 +72,9 @@ def patch_file(root: Path, name: str):
     src = path.read_text(encoding="utf-8")
 
     if p["old"] in src:
-        path.write_text(src.replace(p["old"], p["new"]), encoding="utf-8")
+        src = src.replace(p["old"], p["new"])
+        src = src.replace('OS << " " << repo;', 'OS << "\\n" << repo;')
+        path.write_text(src, encoding="utf-8")
         print(f"[INFO] Patched {name}: {path}")
     elif p["new"].split("\n")[0] in src:
         print(f"[INFO] {name}: already patched, skipping")
