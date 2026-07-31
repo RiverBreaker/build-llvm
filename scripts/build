@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+export MSYS_NO_PATHCONV=1
 build_dir=""
 build_arch=""
 build_type=""
@@ -45,9 +46,9 @@ if [[ -z "$build_dir" || -z "$build_arch" || -z "$build_type" || -z "$build_proj
     exit 1
 fi
 if [[ "$(uname -s)" == MINGW* || "$(uname -s)" == MSYS* ]]; then
-    build_dir=$(cygpath -w "$build_dir")
-    install_dir=$(cygpath -w "$install_dir")
-    src_dir=$(cygpath -w "$src_dir")
+    build_dir=$(cygpath -m "$build_dir")
+    install_dir=$(cygpath -m "$install_dir")
+    src_dir=$(cygpath -m "$src_dir")
 else
     # Linux use realpath
     build_dir=$(realpath -m "$build_dir")
@@ -67,6 +68,14 @@ mkdir -p "${build_dir}"
 cmake_args=()
 if [[ "${build_project}" == "base" ]]; then
 	will_build="llvm"
+	if [[ "${build_type}" == "Release" ]]; then
+		# 纯工具链
+		cmake_args+=(
+			"-DLLVM_INSTALL_TOOLCHAIN_ONLY=ON"
+			"-DCOMPILER_RT_BUILD_SANITIZERS=OFF"
+			"-DCOMPILER_RT_BUILD_XRAY=OFF"
+		)
+	fi
 	cmake_args+=(
         "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra"
         "-DLLVM_ENABLE_RUNTIMES=compiler-rt;openmp"
@@ -144,4 +153,23 @@ echo "::endgroup::[INFO] Cleanup complete."
 
 echo "::group::[INFO] 开始清理构建目录"
 rm -rf "${build_dir}" || { echo "[ERROR] 构建清理失败"; exit 1; }
-echo "::endgroup::[INFO] 清理完成"
+echo "[INFO] 清理完成"
+echo "::endgroup::"
+
+if [[ "${build_type}" == "Release" && "${build_project}" == "flang" ]]; then
+	echo "::group::开始清理mlir的工具和开发库"
+    # mlir 的工具和开发库，工具链用户不需要
+    rm -f "${install_dir}"/bin/mlir-*
+    rm -f "${install_dir}"/bin/tblgen-liblinalg*
+    rm -rf "${install_dir}"/lib/cmake/mlir
+    rm -f "${install_dir}"/lib/libMLIR*.lib
+    rm -f "${install_dir}"/lib/libmlir*.lib
+    rm -rf "${install_dir}"/include/mlir
+    rm -rf "${install_dir}"/include/mlir-c
+
+    # lldb 对工具链用户也可选（看你要不要留）
+    # rm -f "${install_dir}"/bin/lldb*
+
+    echo "[INFO] Release toolchain: removed MLIR dev files"
+	echo "::endgroup::"
+fi
