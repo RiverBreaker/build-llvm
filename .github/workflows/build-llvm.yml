@@ -48,6 +48,8 @@ jobs:
           LLVM_INSTALL_ROOT="C:/llvm"
           LLVM_INSTALL_DIR="${LLVM_INSTALL_ROOT}/install/${LLVM_CONFIG}"
 
+          python ${GITHUB_WORKSPACE}/scripts/version.py ${LLVM_CODE_BASE}
+
           # ====== 创建目录 ======
           # Bash 的 mkdir -p 可以直接创建多级目录，且目录已存在时不会报错，完美替代 for 循环
           mkdir -p "${LLVM_CODE_BASE}" "${LLVM_BUILD_DIR}" "${LLVM_INSTALL_ROOT}" "${LLVM_INSTALL_DIR}"
@@ -127,6 +129,8 @@ jobs:
           LLVM_INSTALL_ROOT="C:/llvm"
           LLVM_INSTALL_DIR="${LLVM_INSTALL_ROOT}/install/${LLVM_CONFIG}"
 
+          python ${GITHUB_WORKSPACE}/scripts/version.py ${LLVM_CODE_BASE}
+
           # ====== 创建目录 ======
           mkdir -p "${LLVM_CODE_BASE}" "${LLVM_BUILD_DIR}" "${LLVM_INSTALL_ROOT}" "${LLVM_INSTALL_DIR}"
 
@@ -202,6 +206,8 @@ jobs:
           LLVM_INSTALL_ROOT="C:/llvm"
           LLVM_INSTALL_DIR="${LLVM_INSTALL_ROOT}/install/${LLVM_CONFIG}"
           LLVM_LICENSE_DIR="${LLVM_INSTALL_DIR}/LICENSE"
+
+          python ${GITHUB_WORKSPACE}/scripts/version.py ${LLVM_CODE_BASE}
 
           # ====== 创建目录 ======
           mkdir -p "${LLVM_CODE_BASE}" "${LLVM_BUILD_DIR}" "${LLVM_INSTALL_ROOT}" \

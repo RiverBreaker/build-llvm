@@ -6,8 +6,6 @@ build_type=""
 build_project=""
 install_dir=""
 src_dir=""
-base_build_cmd=""
-other_build_cmd=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -76,7 +74,7 @@ if [[ "${build_project}" == "base" ]]; then
         "-DCOMPILER_RT_BUILD_LIBFUZZER=OFF"
         "-DCOMPILER_RT_BUILD_ORC=OFF"
         "-DPACKAGE_VENDOR=Build By github@Riverbreaker"
-        "-DCLANG_VENDOR=Build By github@Riverbreaker"
+        "-DCLANG_VENDOR=github@Riverbreaker"
     )
 else
 	will_build="${build_project}"
@@ -87,11 +85,16 @@ else
 fi
 if [[ "${build_project}" == "flang" ]]; then
 	cmake_args+=(
-		"-DFLANG_VENDOR=Build By github@Riverbreaker"
+		"-DFLANG_VENDOR=github@Riverbreaker"
 		"-DMLIR_DIR=${install_dir}/lib/cmake/mlir"
 	)
 fi
-
+if [[ "${build_type}" == "RelWithDebInfo" ]]; then
+	cmake_args+=(
+		"-DCMAKE_C_FLAGS_RELWITHDEBINFO=/Z7 /O2 /Ob1 /DNDEBUG"
+        "-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=/Z7 /O2 /Ob1 /DNDEBUG"
+	)
+fi
 cmake_args+=(
     "-DCMAKE_BUILD_TYPE=${build_type}"
     "-DLLVM_ENABLE_RTTI=OFF"
@@ -127,7 +130,7 @@ ninja -C "${build_dir}" install && echo [INFO] 安装完成，目录：${install
 echo "::endgroup::"
 
 # ====== 5.5 体积优化（可选） ======
-echo "[INFO] Cleaning up unnecessary files to reduce package size..."
+echo "::group::[INFO] Cleaning up unnecessary files to reduce package size..."
 
 if [[ "${build_type}" == "Release" ]]; then
 	find "${install_dir}" -type f -name "*.pdb" -delete 2>/dev/null || true
@@ -137,8 +140,8 @@ else
 fi
 
 find "${install_dir}/bin" -type f -name "*Tests.exe" -delete 2>/dev/null || true
-echo "[INFO] Cleanup complete."
+echo "::endgroup::[INFO] Cleanup complete."
 
-echo "[INFO] 开始清理构建目录"
+echo "::group::[INFO] 开始清理构建目录"
 rm -rf "${build_dir}" || { echo "[ERROR] 构建清理失败"; exit 1; }
-echo "[INFO] 清理完成"
+echo "::endgroup::[INFO] 清理完成"
