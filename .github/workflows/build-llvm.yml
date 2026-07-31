@@ -241,7 +241,7 @@ jobs:
           echo "[INFO] 验证安装结果"
           "${LLVM_INSTALL_DIR}/bin/clang.exe" --version
           "${LLVM_INSTALL_DIR}/bin/lldb.exe" --version
-          "${LLVM_INSTALL_DIR}/bin/lld.exe" --version
+          "${LLVM_INSTALL_DIR}/bin/lld-link.exe" --version
 
       - name: Upload-to-artifact
         uses: actions/upload-artifact@v7
