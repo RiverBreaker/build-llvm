@@ -71,7 +71,6 @@ if [[ "${build_project}" == "base" ]]; then
 	if [[ "${build_type}" == "Release" ]]; then
 		# 纯工具链
 		cmake_args+=(
-			"-DLLVM_INSTALL_TOOLCHAIN_ONLY=ON"
 			"-DCOMPILER_RT_BUILD_SANITIZERS=OFF"
 			"-DCOMPILER_RT_BUILD_XRAY=OFF"
 		)
