@@ -105,6 +105,10 @@ if [[ "${build_project}" != "mlir" ]]; then
     cmake_args+=(
 		"-DLLVM_INCLUDE_TESTS=OFF"
 	)
+else
+	cmake_args+=(
+		"-DMLIR_INCLUDE_TESTS=ON"
+	)
 fi
 if [[ "${build_type}" == "RelWithDebInfo" ]]; then
 	cmake_args+=(
