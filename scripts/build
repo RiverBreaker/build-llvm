@@ -100,6 +100,12 @@ if [[ "${build_project}" == "flang" ]]; then
 		"-DMLIR_TABLEGEN_EXE=${install_dir}/bin/mlir-tblgen.exe"
 	)
 fi
+# 改为按项目控制：
+if [[ "${build_project}" != "mlir" ]]; then
+    cmake_args+=(
+		"-DLLVM_INCLUDE_TESTS=OFF"
+	)
+fi
 if [[ "${build_type}" == "RelWithDebInfo" ]]; then
 	cmake_args+=(
 		"-DCMAKE_C_FLAGS_RELWITHDEBINFO=/Z7 /O2 /Ob1 /DNDEBUG"
@@ -111,7 +117,6 @@ cmake_args+=(
     "-DLLVM_ENABLE_RTTI=OFF"
     "-DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON"
     "-DLLVM_PARALLEL_LINK_JOBS=4"
-    "-DLLVM_INCLUDE_TESTS=OFF"
     "-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded"
     "-DCMAKE_INSTALL_PREFIX=${install_dir}"
     "-DCMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO=/INCREMENTAL:NO"
