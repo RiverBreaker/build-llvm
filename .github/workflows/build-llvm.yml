@@ -6,7 +6,7 @@ on:
       llvm-version:
         description: 'LLVM version'
         required: true
-        default: '20.1.0'
+        default: '21.1.8'
 
 jobs:
   build-llvm-base:
