@@ -123,7 +123,7 @@ cmake_args+=(
 )
 
 cd "${src_dir}"
-echo "::group::CMake 配置"
+echo "::group::${build_project} CMake 配置"
 cmake -S "${will_build}" \
 	-B "${build_dir}" \
 	-G Ninja \
@@ -132,12 +132,13 @@ echo "::endgroup::"
 
 # ====== 3. 编译 ======
 JOBS=$(nproc 2>/dev/null || echo 2)
-echo "::group::Ninja 编译 (使用 ${JOBS} 个并发任务)"
-ninja -C "${build_dir}" -j"${JOBS}" || { echo "::error::编译失败"; exit 1; }
+echo "::group::Ninja 编译 ${build_project} (使用 ${JOBS} 个并发任务)"
+ninja -C "${build_dir}" -j"${JOBS}" || { echo "::error::${build_project} 编译失败"; exit 1; }
 echo "::endgroup::"
 # ====== 4. 安装 ======
-echo "::group::Ninja 安装"
-ninja -C "${build_dir}" install && echo [INFO] 安装完成，目录：${install_dir} || { echo "::error::安装失败"; exit 1; }
+echo "::group::Ninja 安装 ${build_project}"
+ninja -C "${build_dir}" install && echo "[INFO] ${build_project} 安装完成，目录：${install_dir}" \
+	|| { echo "::error::${build_project} 安装失败"; exit 1; }
 echo "::endgroup::"
 
 # ====== 5.5 体积优化（可选） ======
