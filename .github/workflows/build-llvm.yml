@@ -246,7 +246,7 @@ jobs:
       - name: Upload-to-artifact
         uses: actions/upload-artifact@v7
         with:
-          name: llvm-base-${{ matrix.arch }}-${{ matrix.config }}-lld-lldb
+          name: llvm-${{ matrix.arch }}-${{ matrix.config }}-lld-lldb
           path: "C:/llvm/install/${{ matrix.config }}"
 
   package-and-release:
