@@ -101,11 +101,11 @@ if [[ "${build_project}" == "flang" ]]; then
 	)
 fi
 # 改为按项目控制：
-if [[ "${build_project}" != "mlir" ]]; then
+if [[ "${build_project}" == "base" ]]; then
     cmake_args+=(
 		"-DLLVM_INCLUDE_TESTS=OFF"
 	)
-else
+elif [[ "${build_project}" == "mlir" ]]; then
 	cmake_args+=(
 		"-DMLIR_INCLUDE_TESTS=ON"
 	)
