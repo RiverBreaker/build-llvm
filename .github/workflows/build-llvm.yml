@@ -276,31 +276,31 @@ jobs:
           name: llvm-${{ matrix.arch }}-${{ matrix.config }}-lld-lldb
           path: "C:/llvm/install/${{ matrix.config }}"
 
-      - name: Package
-        env:
-          LLVM_CONFIG: ${{ matrix.config }}
-          LLVM_ARCH: ${{ matrix.arch }}
-        run: |
-          LLVM_INSTALL_ROOT="C:/llvm"
-          LLVM_INSTALL_DIR="${LLVM_INSTALL_ROOT}/install/${LLVM_CONFIG}"
-          PACKAGE_DIR="${LLVM_INSTALL_ROOT}/packages"
-          mkdir -p "${PACKAGE_DIR}"
-          # ====== 打包 ======
-          cd "${LLVM_INSTALL_DIR}"
+      # - name: Package
+      #   env:
+      #     LLVM_CONFIG: ${{ matrix.config }}
+      #     LLVM_ARCH: ${{ matrix.arch }}
+      #   run: |
+      #     LLVM_INSTALL_ROOT="C:/llvm"
+      #     LLVM_INSTALL_DIR="${LLVM_INSTALL_ROOT}/install/${LLVM_CONFIG}"
+      #     PACKAGE_DIR="${LLVM_INSTALL_ROOT}/packages"
+      #     mkdir -p "${PACKAGE_DIR}"
+      #     # ====== 打包 ======
+      #     cd "${LLVM_INSTALL_DIR}"
 
-          ZIP_FILE="${PACKAGE_DIR}/llvm-${{ inputs.llvm-version }}-win-${LLVM_ARCH}-${LLVM_CONFIG}-MSVC-2022.7z"
+      #     ZIP_FILE="${PACKAGE_DIR}/llvm-${{ inputs.llvm-version }}-win-${LLVM_ARCH}-${LLVM_CONFIG}-MSVC-2022.7z"
 
-          rm -f "${ZIP_FILE}"
+      #     rm -f "${ZIP_FILE}"
 
-          echo "[INFO] 开始打包到：${ZIP_FILE}"
-          echo "[INFO] 开始生成单文件 7z 压缩包"
+      #     echo "[INFO] 开始打包到：${ZIP_FILE}"
+      #     echo "[INFO] 开始生成单文件 7z 压缩包"
 
-          7z a -t7z "${ZIP_FILE}" . -mx=7 -mmt=on || {
-            echo "[ERROR] 生成单文件压缩包失败"
-            exit 1
-          }
+      #     7z a -t7z "${ZIP_FILE}" . -mx=7 -mmt=on || {
+      #       echo "[ERROR] 生成单文件压缩包失败"
+      #       exit 1
+      #     }
 
-          echo "[INFO] 单文件压缩包生成完成"
+      #     echo "[INFO] 单文件压缩包生成完成"
 
       - name: Package build to output
         env:
@@ -309,46 +309,46 @@ jobs:
           LLVM_INSTALL_DIR: "C:/llvm/install/${{ matrix.config }}"
           LLVM_ARCH: ${{ matrix.arch }}
         run: |
-          FILE_PATH="$ZIP_FILE"
+          # FILE_PATH="$ZIP_FILE"
           NEW_FILE_PATH="${RUNNER_TEMP}/packages"
-          LIMIT_SIZE=2044723200 # 1950 MB in bytes (1950 * 1024 * 1024)
+          # LIMIT_SIZE=2044723200 # 1950 MB in bytes (1950 * 1024 * 1024)
 
           # 创建目标目录
           mkdir -p "$NEW_FILE_PATH"
 
           # 检查文件是否存在并获取大小
-          if [ ! -f "$FILE_PATH" ]; then
-            echo "::error::找不到压缩文件: $FILE_PATH"
-            exit 1
-          fi
+          # if [ ! -f "$FILE_PATH" ]; then
+          #   echo "::error::找不到压缩文件: $FILE_PATH"
+          #   exit 1
+          # fi
 
           # 获取文件大小 (字节)
-          FILE_SIZE=$(wc -c < "$FILE_PATH" | tr -d ' ')
-          FILE_SIZE_MB=$(echo "scale=2; $FILE_SIZE / 1048576" | bc)
+          # FILE_SIZE=$(wc -c < "$FILE_PATH" | tr -d ' ')
+          # FILE_SIZE_MB=$(echo "scale=2; $FILE_SIZE / 1048576" | bc)
 
-          if [ "$FILE_SIZE" -le "$LIMIT_SIZE" ]; then
-            echo "[INFO] 压缩包大小正常 (${FILE_SIZE_MB} MB)，复制到包目录"
-            cp -f "$FILE_PATH" "$NEW_FILE_PATH/"
-            echo "[INFO] 复制完成"
-          else
-            echo "[INFO] 压缩包过大 (${FILE_SIZE_MB} MB)，开始分卷压缩到: $NEW_FILE_PATH"
+          # if [ "$FILE_SIZE" -le "$LIMIT_SIZE" ]; then
+          #   echo "[INFO] 压缩包大小正常 (${FILE_SIZE_MB} MB)，复制到包目录"
+          #   cp -f "$FILE_PATH" "$NEW_FILE_PATH/"
+          #   echo "[INFO] 复制完成"
+          # else
+          # echo "[INFO] 压缩包过大 (${FILE_SIZE_MB} MB)，开始分卷压缩到: $NEW_FILE_PATH"
 
-            OUTPUT_BASE="llvm-${{ inputs.llvm-version }}-win-${LLVM_ARCH}-${CONFIG}-MSVC-2022"
-            OUTPUT_PATH="${NEW_FILE_PATH}/${OUTPUT_BASE}.7z"
+          OUTPUT_BASE="llvm-${{ inputs.llvm-version }}-win-${LLVM_ARCH}-${CONFIG}-MSVC-2022"
+          OUTPUT_PATH="${NEW_FILE_PATH}/${OUTPUT_BASE}.7z"
 
-            echo "[INFO] 运行命令: 7z a -t7z ${OUTPUT_PATH} ${LLVM_INSTALL_DIR}/* -v1950m -mx=6 -mmt=on"
+          echo "[INFO] 运行命令: 7z a -t7z ${OUTPUT_PATH} ${LLVM_INSTALL_DIR}/* -v1950m -mx=6 -mmt=on"
 
             # 执行 7z 分卷压缩
-            if 7z a -t7z "$OUTPUT_PATH" "${LLVM_INSTALL_DIR}/" -v1950m -mx=6 -mmt=on; then
-              echo "[INFO] 分卷压缩成功, 输出前缀: $OUTPUT_PATH"
-              # 删除原始单文件压缩包
-              rm -f "$FILE_PATH" || echo "[WARN] 删除原始压缩包失败"
-              echo "[INFO] 已删除原始单文件压缩包: $FILE_PATH"
-            else
-              echo "::error::分卷压缩失败，保留原始单文件压缩包: $FILE_PATH"
-              exit 1
-            fi
+          if 7z a -t7z "$OUTPUT_PATH" "${LLVM_INSTALL_DIR}/" -v1950m -mx=6 -mmt=on; then
+            echo "[INFO] 分卷压缩成功, 输出前缀: $OUTPUT_PATH"
+            # 删除原始单文件压缩包
+            # rm -f "$FILE_PATH" || echo "[WARN] 删除原始压缩包失败"
+            # echo "[INFO] 已删除原始单文件压缩包: $FILE_PATH"
+          else
+            echo "::error::分卷压缩失败，保留原始单文件压缩包: $FILE_PATH"
+            exit 1
           fi
+          # fi
 
       - name: Create Tag if not exists
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
