@@ -336,10 +336,12 @@ jobs:
           OUTPUT_BASE="llvm-${{ inputs.llvm-version }}-win-${LLVM_ARCH}-${CONFIG}-MSVC-2022"
           OUTPUT_PATH="${NEW_FILE_PATH}/${OUTPUT_BASE}.7z"
 
-          echo "[INFO] 运行命令: 7z a -t7z ${OUTPUT_PATH} ${LLVM_INSTALL_DIR}/* -v1950m -mx=6 -mmt=on"
+          # echo "[INFO] 运行命令: 7z a -t7z ${OUTPUT_PATH} ${LLVM_INSTALL_DIR}/* -v1950m -mx=5 -mmt=on"
 
             # 执行 7z 分卷压缩
-          if 7z a -t7z "$OUTPUT_PATH" "${LLVM_INSTALL_DIR}/" -v1950m -mx=6 -mmt=on; then
+          cd "${LLVM_INSTALL_DIR}"
+          echo "[INFO] 开始分卷压缩"
+          if 7z a -t7z "$OUTPUT_PATH" . -v1950m -mx=5 -mmt=on; then
             echo "[INFO] 分卷压缩成功, 输出前缀: $OUTPUT_PATH"
             # 删除原始单文件压缩包
             # rm -f "$FILE_PATH" || echo "[WARN] 删除原始压缩包失败"
