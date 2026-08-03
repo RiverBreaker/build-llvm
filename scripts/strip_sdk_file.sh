@@ -20,71 +20,65 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+if [[ -z "${build_type}" || -z "${install_dir}" ]]; then
+    echo "[ERROR] 缺少必要参数: --build-type --install-dir"
+    exit 1
+fi
+
+if [[ ! -d "${install_dir}" ]]; then
+    echo "[ERROR] 安装目录不存在: ${install_dir}"
+    exit 1
+fi
 if [[ "${build_type}" == "Release" ]]; then
     echo "[INFO] Stripping SDK files, keeping toolchain only..."
+	rm -rf "${install_dir}/include/clang"
+	rm -rf "${install_dir}/include/clang-tidy"
+	rm -rf "${install_dir}/include/llvm"
+	rm -rf "${install_dir}/include/mlir"
+	rm -rf "${install_dir}/include/mlir-c"
+	rm -rf "${install_dir}/include/lld"
+	rm -rf "${install_dir}/include/lldb"
 
-    # ====== 删除 C++ 开发库（官方不装这些）======
-    rm -f "${install_dir}"/lib/libLLVM*.lib
-    rm -f "${install_dir}"/lib/liblld*.lib
-    rm -f "${install_dir}"/lib/libmlir*.lib
-    rm -f "${install_dir}"/lib/libMLIR*.lib
-    rm -f "${install_dir}"/lib/libflang*.lib
-    rm -f "${install_dir}"/lib/libFortran*.lib
-    rm -f "${install_dir}"/lib/libclang*.lib
-    # 但保留 C API 库（官方有这些）：
-    # libclang.lib, LLVM-C.lib, LTO.lib, Remarks.lib, liblldb.lib, libomp.lib
+	rm -rf "${install_dir}/lib/cmake/clang"
+	rm -rf "${install_dir}/lib/cmake/flang"
+	rm -rf "${install_dir}/lib/cmake/lld"
+	rm -rf "${install_dir}/lib/cmake/mlir"
+	rm -rf "${install_dir}/lib/objects-Release"
 
-    # ====== 删除 C++ 开发头文件（官方不装这些）======
-    rm -rf "${install_dir}"/include/llvm
-    rm -rf "${install_dir}"/include/clang     # C++ 头文件，不是 clang-c/
-    rm -rf "${install_dir}"/include/lld
-    rm -rf "${install_dir}"/include/lldb
-    rm -rf "${install_dir}"/include/mlir
-    rm -rf "${install_dir}"/include/mlir-c
-    rm -rf "${install_dir}"/include/flang
-    # 保留：include/clang-c/（C API）、include/llvm-c/（C API）
-    # 保留：lib/clang/*/include/（内置头文件）
+	LLVM_CMAKE_DIR="${install_dir}/lib/cmake/llvm"
 
-    # ====== 删除 CMake 配置（官方只有 LLVMConfigExtensions.cmake）======
-    rm -rf "${install_dir}"/lib/cmake
+	if [[ -d "${LLVM_CMAKE_DIR}" ]]; then
+		find "${LLVM_CMAKE_DIR}" \
+			-mindepth 1 \
+			-maxdepth 1 \
+			! -name 'LLVMConfigExtensions.cmake' \
+			-exec rm -rf -- {} +
+	fi
+	# rm -rf "${install_dir}/lib/cmake/llvm/*" # 需要保留LLVMConfigExtensions.cmake
 
-    # ====== 删除 MLIR 工具 ======
-    rm -f "${install_dir}"/bin/mlir-*
-    rm -f "${install_dir}"/bin/tblgen-liblinalg*
-    rm -f "${install_dir}"/bin/fir-opt.exe
+	find "${install_dir}/lib" \
+		-maxdepth 1 \
+		-type f \
+		-name '*.lib' \
+		! -name 'libclang.lib' \
+		! -name 'liblldb.lib' \
+		! -name 'libomp.lib' \
+		! -name 'LLVM-C.lib' \
+		! -name 'LTO.lib' \
+		! -name 'Remarks.lib' \
+		! -name 'libiomp5md.lib' \
+		-delete
+	# rm -rf "${install_dir}/lib/*.lib" # 需要保留libclang.lib、liblldb.lib、libomp.lib、LLVM-C.lib、LTO.lib、Remarks.lib
 
-    # ====== 删除 LLVM 开发工具（官方不装这些）======
-    rm -f "${install_dir}"/bin/opt.exe
-    rm -f "${install_dir}"/bin/llc.exe
-    rm -f "${install_dir}"/bin/llvm-*.exe
-    # 但保留官方有的：llvm-ar, llvm-nm, llvm-objdump, llvm-profdata 等
-    # 所以不要 rm -f bin/llvm-*.exe！改为精确删除：
-    rm -f "${install_dir}"/bin/opt.exe
-    rm -f "${install_dir}"/bin/llc.exe
-    rm -f "${install_dir}"/bin/FileCheck.exe
-    rm -f "${install_dir}"/bin/count.exe
-    rm -f "${install_dir}"/bin/not.exe
-    rm -f "${install_dir}"/bin/yaml2obj.exe
-    rm -f "${install_dir}"/bin/obj2yaml.exe
-    rm -f "${install_dir}"/bin/verify-uselistorder.exe
-    rm -f "${install_dir}"/bin/bugpoint.exe
-    rm -f "${install_dir}"/bin/llvm-bcanalyzer.exe
-    rm -f "${install_dir}"/bin/llvm-extract.exe
-    rm -f "${install_dir}"/bin/llvm-link.exe
-    rm -f "${install_dir}"/bin/llvm-lto*.exe
-    rm -f "${install_dir}"/bin/llvm-reduce.exe
-    rm -f "${install_dir}"/bin/llvm-remarkutil.exe
-    rm -f "${install_dir}"/bin/llvm-split.exe
-    rm -f "${install_dir}"/bin/llvm-stress.exe
-    rm -f "${install_dir}"/bin/llvm-tblgen.exe
-    rm -f "${install_dir}"/bin/llvm-ifs.exe
-    rm -f "${install_dir}"/bin/llvm-gsymutil.exe
-    rm -f "${install_dir}"/bin/llvm-debuginfod*.exe
-    rm -f "${install_dir}"/bin/llvm-mc.exe
-    rm -f "${install_dir}"/bin/llvm-readelf.exe
-    rm -f "${install_dir}"/bin/llvm-tli-checker.exe
-    rm -f "${install_dir}"/bin/llvm-windres.exe
-    rm -f "${install_dir}"/bin/llvm-xray.exe
+	find "${install_dir}" \
+    -type f \
+    \( -name '*.pdb' -o -name '*.ilk' \) \
+    -delete 2>/dev/null || true
 
     echo "[INFO] Release toolchain: SDK files stripped"
+elif [[ "${build_type}" == "RelWithDebInfo" ]]; then
+	echo "[INFO] Skip strip for RelWithDebInfo"
+else
+    echo "[ERROR] 不支持的构建类型: ${build_type}"
+    exit 1
 fi

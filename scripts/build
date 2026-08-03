@@ -110,10 +110,18 @@ elif [[ "${build_project}" == "mlir" ]]; then
 		"-DMLIR_INCLUDE_TESTS=ON"
 	)
 fi
-if [[ "${build_type}" == "RelWithDebInfo" ]]; then
+
+if [[ "${build_type}" == "Release" ]]; then
 	cmake_args+=(
-		"-DCMAKE_C_FLAGS_RELWITHDEBINFO=/Z7 /O2 /Ob1 /DNDEBUG"
-        "-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=/Z7 /O2 /Ob1 /DNDEBUG"
+        "-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=None"
+        "-DLLVM_ENABLE_PDB=OFF"
+    )
+elif [[ "${build_type}" == "RelWithDebInfo" ]]; then
+	cmake_args+=(
+		"-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=ProgramDatabase"
+        "-DLLVM_ENABLE_PDB=ON"
+		"-DCMAKE_C_FLAGS_RELWITHDEBINFO=/Zi /O2 /Ob1 /DNDEBUG"
+        "-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=/Zi /O2 /Ob1 /DNDEBUG"
 	)
 fi
 cmake_args+=(
@@ -121,7 +129,6 @@ cmake_args+=(
     "-DLLVM_ENABLE_RTTI=OFF"
     "-DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON"
     "-DLLVM_PARALLEL_LINK_JOBS=4"
-    "-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded"
     "-DCMAKE_INSTALL_PREFIX=${install_dir}"
     "-DCMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO=/INCREMENTAL:NO"
     "-DCMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO=/INCREMENTAL:NO"
