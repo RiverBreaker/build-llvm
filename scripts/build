@@ -139,7 +139,7 @@ cmake_args+=(
 
 cd "${src_dir}"
 echo "::group:: Cmake配置详细："
-echo "${cmake_args}"
+printf '  %q\n' "${cmake_args[@]}"
 echo "::endgroup::"
 echo "::group::${build_project} CMake 配置"
 cmake -S "${will_build}" \
