@@ -113,7 +113,6 @@ fi
 
 if [[ "${build_type}" == "Release" ]]; then
 	cmake_args+=(
-        "-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=None"
         "-DLLVM_ENABLE_PDB=OFF"
     )
 elif [[ "${build_type}" == "RelWithDebInfo" ]]; then
@@ -139,6 +138,9 @@ cmake_args+=(
 )
 
 cd "${src_dir}"
+echo "::group:: Cmake配置详细："
+echo "${cmake_args}"
+echo "::endgroup::"
 echo "::group::${build_project} CMake 配置"
 cmake -S "${will_build}" \
 	-B "${build_dir}" \
