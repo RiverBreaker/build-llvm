@@ -49,7 +49,7 @@ if [[ "${build_type}" == "Release" ]]; then
 	echo "[INFO] 开始打包到：${package_dir}/${base_name}.7z"
 	echo "[INFO] 开始生成单文件 7z 压缩包"
 
-	7z a -t7z "${package_dir}/${ZIP_FILE}" . -mx=6 -mmt=on || {
+	7z a -t7z "${package_dir}/${ZIP_FILE}" . -mx=7 -mmt=on || {
 		echo "[ERROR] 生成单文件压缩包失败"
 		exit 1
 	}
@@ -58,9 +58,9 @@ elif [[ "${build_type}" == "RelWithDebInfo" ]]; then
 	OUTPUT_PATH="${package_dir}/${base_name}.7z"
 	# 执行 7z 分卷压缩
 	cd "${install_dir}"
-	echo "[INFO] 开始分卷压缩"
-	if 7z a -t7z "$OUTPUT_PATH" . -v1950m -mx=5 -mmt=on; then
-		echo "[INFO] 分卷压缩成功, 输出前缀: $OUTPUT_PATH"
+	echo "[INFO] 开始压缩"
+	if 7z a -t7z "$OUTPUT_PATH" . -mx=7 -mmt=on; then
+		echo "[INFO] 压缩成功, 输出前缀: $OUTPUT_PATH"
 	else
 		echo "::error::分卷压缩失败"
 		exit 1

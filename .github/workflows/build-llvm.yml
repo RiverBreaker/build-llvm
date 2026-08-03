@@ -150,6 +150,28 @@ jobs:
             --build-project=flang \
             --install-dir="${LLVM_INSTALL_DIR}" \
             --src-dir="${LLVM_CODE_BASE}"
+            
+          python ${GITHUB_WORKSPACE}/scripts/build.py \
+            --build-dir="${LLVM_BUILD_DIR}" \
+            --build-arch="${LLVM_ARCH}" \
+            --build-type="${LLVM_CONFIG}" \
+            --build-project=flang-rt \
+            --install-dir="${LLVM_INSTALL_DIR}" \
+            --src-dir="${LLVM_CODE_BASE}"
+
+          find "${LLVM_INSTALL_DIR}/lib/clang" \
+            -type f \
+            -name 'flang_rt.runtime*.lib' \
+            -print
+
+          cat > test.f90 <<'EOF'
+          program hello
+            print *, "flang runtime works"
+          end program hello
+          EOF
+
+          "${LLVM_INSTALL_DIR}/bin/flang.exe" test.f90 -o test-flang.exe
+          ./test-flang.exe
 
           # ====== 验证 ======
           "${LLVM_INSTALL_DIR}/bin/clang.exe" --version

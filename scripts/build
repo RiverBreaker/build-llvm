@@ -86,6 +86,19 @@ if [[ "${build_project}" == "base" ]]; then
         "-DPACKAGE_VENDOR=Build By github@Riverbreaker (https://github.com/RiverBreaker/build-llvm.git)"
         "-DCLANG_VENDOR=github@Riverbreaker (https://github.com/RiverBreaker/build-llvm.git)"
     )
+elif [[ "${build_project}" == "flang-rt" ]]; then
+    # flang-rt 不能直接用 -S flang-rt，必须从 runtimes 入口配置
+    will_build="runtimes"
+
+    cmake_args+=(
+        "-DLLVM_DIR=${install_dir}/lib/cmake/llvm"
+        "-DLLVM_ENABLE_RUNTIMES=flang-rt"
+        "-DCMAKE_C_COMPILER=${install_dir}/bin/clang.exe"
+        "-DCMAKE_CXX_COMPILER=${install_dir}/bin/clang++.exe"
+        "-DCMAKE_Fortran_COMPILER=${install_dir}/bin/flang.exe"
+        "-DFLANG_RT_INCLUDE_TESTS=OFF"
+        "-DLLVM_INCLUDE_TESTS=OFF"
+    )
 else
 	will_build="${build_project}"
 	cmake_args+=(
@@ -98,16 +111,19 @@ if [[ "${build_project}" == "flang" ]]; then
 		"-DFLANG_VENDOR=github@Riverbreaker (https://github.com/RiverBreaker/build-llvm.git)"
 		"-DMLIR_DIR=${install_dir}/lib/cmake/mlir"
 		"-DMLIR_TABLEGEN_EXE=${install_dir}/bin/mlir-tblgen.exe"
+		"-"
 	)
-fi
-# 改为按项目控制：
-if [[ "${build_project}" == "base" ]]; then
+elif [[ "${build_project}" == "base" ]]; then
     cmake_args+=(
 		"-DLLVM_INCLUDE_TESTS=OFF"
 	)
 elif [[ "${build_project}" == "mlir" ]]; then
 	cmake_args+=(
 		"-DMLIR_INCLUDE_TESTS=ON"
+	)
+elif [[ "${build_project}" == "lldb" ]]; then
+	cmake_args+=(
+		"-DLLDB_EMBED_PYTHON_HOME=OFF"
 	)
 fi
 
@@ -129,9 +145,9 @@ cmake_args+=(
     "-DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON"
     "-DLLVM_PARALLEL_LINK_JOBS=4"
     "-DCMAKE_INSTALL_PREFIX=${install_dir}"
-    "-DCMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO=/INCREMENTAL:NO"
-    "-DCMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO=/INCREMENTAL:NO"
-    "-DCMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO=/INCREMENTAL:NO"
+    "-DCMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO=/DEBUG:FULL /INCREMENTAL:NO"
+    "-DCMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO=/DEBUG:FULL /INCREMENTAL:NO"
+    "-DCMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO=/DEBUG:FULL /INCREMENTAL:NO"
     "-DCMAKE_EXE_LINKER_FLAGS=/MANIFEST:NO"
     "-DCMAKE_MODULE_LINKER_FLAGS=/MANIFEST:NO"
     "-DCMAKE_SHARED_LINKER_FLAGS=/MANIFEST:NO"
@@ -157,6 +173,23 @@ echo "::endgroup::"
 echo "::group::Ninja 安装 ${build_project}"
 ninja -C "${build_dir}" install && echo "[INFO] ${build_project} 安装完成，目录：${install_dir}" \
 	|| { echo "::error::${build_project} 安装失败"; exit 1; }
+echo "::endgroup::"
+
+echo "::group::替换LIT路径"
+if [[ "${build_project}" == "base" ]]; then
+    llvm_config="${install_dir}/lib/cmake/llvm/LLVMConfig.cmake"
+
+    if [[ -f "${llvm_config}" ]]; then
+        sed -i -E \
+            's|^set\(LLVM_DEFAULT_EXTERNAL_LIT ".*"\)\r?$|set(LLVM_DEFAULT_EXTERNAL_LIT "")|' \
+            "${llvm_config}"
+    fi
+
+    if grep -Fq "${build_dir}" "${llvm_config}"; then
+        echo "::error::LLVMConfig.cmake still contains build directory: ${build_dir}"
+        exit 1
+    fi
+fi
 echo "::endgroup::"
 
 # ====== 5.5 体积优化（可选） ======
