@@ -111,7 +111,6 @@ if [[ "${build_project}" == "flang" ]]; then
 		"-DFLANG_VENDOR=github@Riverbreaker (https://github.com/RiverBreaker/build-llvm.git)"
 		"-DMLIR_DIR=${install_dir}/lib/cmake/mlir"
 		"-DMLIR_TABLEGEN_EXE=${install_dir}/bin/mlir-tblgen.exe"
-		"-"
 	)
 elif [[ "${build_project}" == "base" ]]; then
     cmake_args+=(
