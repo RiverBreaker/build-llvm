@@ -93,9 +93,12 @@ elif [[ "${build_project}" == "flang-rt" ]]; then
     cmake_args+=(
         "-DLLVM_DIR=${install_dir}/lib/cmake/llvm"
         "-DLLVM_ENABLE_RUNTIMES=flang-rt"
-        "-DCMAKE_C_COMPILER=${install_dir}/bin/clang.exe"
-        "-DCMAKE_CXX_COMPILER=${install_dir}/bin/clang++.exe"
+        "-DCMAKE_C_COMPILER=${install_dir}/bin/clang-cl.exe"
+        "-DCMAKE_CXX_COMPILER=${install_dir}/bin/clang-cl.exe"
         "-DCMAKE_Fortran_COMPILER=${install_dir}/bin/flang.exe"
+        "-DCMAKE_LINKER=${install_dir}/bin/lld-link.exe"
+        "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY"
+        "-DCMAKE_TRY_COMPILE_CONFIGURATION=${build_type}"
         "-DFLANG_RT_INCLUDE_TESTS=OFF"
         "-DLLVM_INCLUDE_TESTS=OFF"
     )
