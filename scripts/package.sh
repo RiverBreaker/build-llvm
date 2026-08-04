@@ -41,6 +41,15 @@ if [[ ! -d "${package_dir}" ]]; then
 	mkdir -p "${package_dir}"
 fi
 
+echo "::group::[INFO] 安装目录体积分析"
+cd "${install_dir}"
+du -sh . || true
+find . -type f \( -iname '*.pdb' -o -iname '*.ilk' \) -printf '%s\n' |
+	awk '{ bytes += $1; count += 1 } END { printf "PDB/ILK: %d files, %.2f GiB\n", count, bytes / 1073741824 }'
+echo "[INFO] 最大的 30 个文件（字节 路径）："
+find . -type f -printf '%s\t%p\n' | sort -nr | sed -n '1,30p'
+echo "::endgroup::"
+
 if [[ "${build_type}" == "Release" ]]; then
 	cd "${install_dir}"
 
@@ -55,15 +64,35 @@ if [[ "${build_type}" == "Release" ]]; then
 	}
 	echo "[INFO] 单文件压缩包生成完成"
 elif [[ "${build_type}" == "RelWithDebInfo" ]]; then
-	OUTPUT_PATH="${package_dir}/${base_name}.7z"
-	# 执行 7z 分卷压缩
+	SDK_OUTPUT_PATH="${package_dir}/${base_name}.7z"
+	SYMBOLS_OUTPUT_PATH="${package_dir}/${base_name}-symbols.7z"
 	cd "${install_dir}"
-	echo "[INFO] 开始压缩"
-	if 7z a -t7z "$OUTPUT_PATH" . -mx=7 -mmt=on -bsp1 -bb2; then
-		echo "[INFO] 压缩成功, 输出前缀: $OUTPUT_PATH"
+
+	rm -f "${SDK_OUTPUT_PATH}" "${SDK_OUTPUT_PATH}".*
+	rm -f "${SYMBOLS_OUTPUT_PATH}" "${SYMBOLS_OUTPUT_PATH}".*
+
+	echo "[INFO] 开始压缩 SDK（排除 PDB/ILK）"
+	if 7z a -t7z "${SDK_OUTPUT_PATH}" . \
+		-xr!'*.pdb' -xr!'*.ilk' \
+		-v1900m -mx=7 -mmt=on -bsp1 -bb2; then
+		echo "[INFO] SDK 压缩成功, 输出前缀: ${SDK_OUTPUT_PATH}"
 	else
-		echo "::error::分卷压缩失败"
+		echo "::error::SDK 分卷压缩失败"
 		exit 1
+	fi
+
+	if find . -type f \( -iname '*.pdb' -o -iname '*.ilk' \) -print -quit | grep -q .; then
+		echo "[INFO] 开始压缩调试符号"
+		if 7z a -t7z "${SYMBOLS_OUTPUT_PATH}" . \
+			-ir!'*.pdb' -ir!'*.ilk' \
+			-v1900m -mx=7 -mmt=on -bsp1 -bb2; then
+			echo "[INFO] Symbols 压缩成功, 输出前缀: ${SYMBOLS_OUTPUT_PATH}"
+		else
+			echo "::error::Symbols 分卷压缩失败"
+			exit 1
+		fi
+	else
+		echo "[INFO] 未发现 PDB/ILK，跳过 symbols 包"
 	fi
 else
 	echo "[ERROR] 不是支持的类型 ${build_type}"

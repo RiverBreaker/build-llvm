@@ -375,21 +375,19 @@ jobs:
           # 开启 nullglob，防止找不到文件时返回字面量字符串
           shopt -s nullglob
 
-          # 查找分卷文件 (例如: *.7z.001, *.7z.002)
-          PARTS=("$DST_DIR"/"$BASE".7z.*)
+          FILES=(
+            "$DST_DIR"/"$BASE".7z*
+            "$DST_DIR"/"$BASE"-symbols.7z*
+          )
 
-          if [ ${#PARTS[@]} -gt 0 ]; then
-            echo "[INFO] 发现分卷压缩包，开始逐个上传..."
-            for file in "${PARTS[@]}"; do
-              # 确保文件不为空
+          if [ ${#FILES[@]} -gt 0 ]; then
+            echo "[INFO] 发现发布包，开始逐个上传..."
+            for file in "${FILES[@]}"; do
               if [ -s "$file" ]; then
                 echo "[INFO] 上传: $file"
                 gh release upload "$TAG" "$file" --clobber
               fi
             done
-          elif [ -f "$DST_DIR/$BASE.7z" ] && [ -s "$DST_DIR/$BASE.7z" ]; then
-            echo "[INFO] 发现单文件压缩包，开始上传..."
-            gh release upload "$TAG" "$DST_DIR/$BASE.7z" --clobber
           else
             echo "::warning::未找到任何有效的压缩包文件用于上传"
           fi
