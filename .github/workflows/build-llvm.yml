@@ -150,7 +150,7 @@ jobs:
             --build-project=flang \
             --install-dir="${LLVM_INSTALL_DIR}" \
             --src-dir="${LLVM_CODE_BASE}"
-            
+
           python ${GITHUB_WORKSPACE}/scripts/build.py \
             --build-dir="${LLVM_BUILD_DIR}" \
             --build-arch="${LLVM_ARCH}" \
@@ -291,17 +291,17 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           name: llvm-${{ matrix.arch }}-${{ matrix.config }}-mlir-flang
-          path: "C:/llvm/install/${{ matrix.config }}"
+          path: "D:/llvm/install/${{ matrix.config }}"
 
       - uses: actions/download-artifact@v7
         with:
           name: llvm-${{ matrix.arch }}-${{ matrix.config }}-lld-lldb
-          path: "C:/llvm/install/${{ matrix.config }}"
+          path: "D:/llvm/install/${{ matrix.config }}"
 
       - name: Strip
         env:
           LLVM_CONFIG: ${{ matrix.config }}
-          LLVM_INSTALL_DIR: "C:/llvm/install/${{ matrix.config }}"
+          LLVM_INSTALL_DIR: "D:/llvm/install/${{ matrix.config }}"
         run: |
           ./scripts/strip_sdk_file.sh \
             --build-type="${LLVM_CONFIG}" \
@@ -311,7 +311,7 @@ jobs:
         env:
           CONFIG: ${{ matrix.config }}
           ZIP_BASE_NAME: "llvm-${{ inputs.llvm-version }}-win-${{ matrix.arch }}-${{ matrix.config }}-MSVC-2022"
-          LLVM_INSTALL_DIR: "C:/llvm/install/${{ matrix.config }}"
+          LLVM_INSTALL_DIR: "D:/llvm/install/${{ matrix.config }}"
           PACKAGES_DIR: "${{ runner.temp }}/packages"
         run: |
           ./scripts/package.sh \
