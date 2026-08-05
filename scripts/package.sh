@@ -74,7 +74,7 @@ elif [[ "${build_type}" == "RelWithDebInfo" ]]; then
 	echo "[INFO] 开始压缩 SDK（排除 PDB/ILK）"
 	if 7z a -t7z "${SDK_OUTPUT_PATH}" . \
 		-xr!'*.pdb' -xr!'*.ilk' \
-		-v1900m -mx=7 -mmt=on -bsp1 -bb2; then
+		-mx=7 -mmt=on -bsp1; then
 		echo "[INFO] SDK 压缩成功, 输出前缀: ${SDK_OUTPUT_PATH}"
 	else
 		echo "::error::SDK 分卷压缩失败"
@@ -82,12 +82,18 @@ elif [[ "${build_type}" == "RelWithDebInfo" ]]; then
 	fi
 
 	if find . -type f \( -iname '*.pdb' -o -iname '*.ilk' \) -print -quit | grep -q .; then
-		echo "[INFO] 开始压缩调试符号"
-		if 7z a -t7z "${SYMBOLS_OUTPUT_PATH}" . \
-			-ir!'*.pdb' -ir!'*.ilk' \
-			-v1900m -mx=7 -mmt=on -bsp1 -bb2; then
+		SYMBOLS_LIST="${package_dir}/${base_name}-symbols.list"
+		find . -type f \( -iname '*.pdb' -o -iname '*.ilk' \) \
+			-printf '%P\n' | sort -u > "${SYMBOLS_LIST}"
+
+		echo "[INFO] 开始压缩调试符号，共 $(wc -l < "${SYMBOLS_LIST}") 个文件"
+		if 7z a -t7z "${SYMBOLS_OUTPUT_PATH}" \
+			@"${SYMBOLS_LIST}" -scsUTF-8 \
+			-v1900m -mx=7 -mmt=on -bsp1; then
+			rm -f "${SYMBOLS_LIST}"
 			echo "[INFO] Symbols 压缩成功, 输出前缀: ${SYMBOLS_OUTPUT_PATH}"
 		else
+			rm -f "${SYMBOLS_LIST}"
 			echo "::error::Symbols 分卷压缩失败"
 			exit 1
 		fi
